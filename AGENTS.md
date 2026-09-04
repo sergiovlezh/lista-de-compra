@@ -2,25 +2,41 @@
 
 ## Status
 
-This repository currently contains only `.gitignore`, `LICENSE`, and a one-line `README.md`. There is no source code, no manifest (`package.json`, `Cargo.toml`, `pyproject.toml`, etc.), no build/test/lint config, and no existing instruction files.
-
-Anything stated below as a command or convention is not yet verifiable; do not invent commands. Re-evaluate this file once the project's tooling and entrypoints are added.
+Phase 0 complete. Toolchain is live; no domain code yet.
 
 ## Repo
 
 - Remote: `git@github.com:sergiovlezh/lista-de-compra.git`
 - Default branch: `main`
-- `.gitignore` is the standard Node template — it suggests a Node/JS toolchain is likely, but this is unconfirmed.
+- Integration branch: `dev` (PRs to `main` come from `dev`)
+- Feature branches: `feat/<short-name>`, off `dev`, PR back to `dev`
 
-## Conventions (assumed, pending verification)
+## Stack
+
+- Vite 5 + React 18 + TypeScript 5
+- Tailwind v4 via `@tailwindcss/vite` (no `tailwind.config.js`)
+- Zustand for state, `zustand/middleware/persist` for localStorage
+- `html5-qrcode` for barcode/QR scanning
+
+## Commands
+
+- `npm install` — install deps
+- `npm run dev` — Vite dev server (default `http://localhost:5173`)
+- `npm run build` — typecheck (`tsc -b`) then production build to `dist/`
+- `npm run preview` — serve the built `dist/` locally
+
+No test runner, no linter, no formatter configured yet. Add when a second contributor shows up or the first one complains.
+
+## Entrypoints
+
+- `index.html` → `src/main.tsx` → `src/App.tsx`
+- `src/store.ts` — Zustand store (Phase 2)
+- `src/types.ts` — domain types (Phase 1)
+- `src/views/*` — one file per view (Phase 3)
+
+## Conventions
 
 - Keep `README.md` updated alongside any new feature or setup step.
 - Do not commit secrets; `.env*` is gitignored except `.env.example`.
-
-## When you add the first real source
-
-Update this file with:
-- The exact dev / build / test / lint / typecheck commands (copy from the manifest's scripts block).
-- Real entrypoints (e.g. `src/index.ts`, `app/main.py`) and any package boundaries.
-- Required env vars and how to load them (e.g. `.env.example`).
-- Any framework or codegen quirks discovered in the config.
+- Tailwind: theme tokens via CSS variables in `src/index.css`, no JS config.
+- Imports use the `@/` alias? No — keep it relative until a second level of nesting earns it.
