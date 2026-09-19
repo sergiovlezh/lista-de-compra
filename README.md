@@ -52,4 +52,6 @@ Open the URL Vite shows (usually `http://localhost:5173`).
 
 ## Status
 
-Pre-Phase 0. The repo has the plan and the decisions; no application code yet. See [`docs/PLAN.md`](docs/PLAN.md) for what's coming.
+MVP. Lists per store, manual + camera barcode entry, price memory with drift prompt, totals, notes, localStorage persistence. Run `npm run dev`.
+
+> Baskets ("compra de mercado" grouping) not yet — lists stand alone. See [`docs/PLAN.md`](docs/PLAN.md) Phase 5.
