@@ -124,6 +124,7 @@ function Detail() {
   const updateList = useStore((s: State) => s.updateList)
   const deleteList = useStore((s: State) => s.deleteList)
   const addItem = useStore((s: State) => s.addItem)
+  const updateItemQty = useStore((s: State) => s.updateItemQty)
   const toggleItem = useStore((s: State) => s.toggleItem)
   const removeItem = useStore((s: State) => s.removeItem)
   const products = useStore((s: State) => s.products)
@@ -166,18 +167,6 @@ function Detail() {
     }
   }
 
-  const updateItemQty = (itemId: string, delta: number) => {
-    const item = list.items.find((i) => i.id === itemId)
-    if (!item) return
-    const newQty = item.qty + delta
-    if (newQty < 1) {
-      removeItem(listId!, itemId)
-    } else {
-      addItem(listId!, { ...item, qty: newQty })
-      removeItem(listId!, itemId)
-    }
-  }
-
   return (
     <div className="space-y-3">
       <div className="flex gap-2">
@@ -195,9 +184,9 @@ function Detail() {
               <div className="text-xs text-gray-500">{i.barcode} · ${i.price.toFixed(2)}</div>
             </div>
             <div className="flex items-center gap-1">
-              <button className="w-8 h-8 rounded border text-sm" onClick={() => updateItemQty(i.id, -1)}>−</button>
+              <button className="w-8 h-8 rounded border text-sm" onClick={() => updateItemQty(listId!, i.id, i.qty - 1)}>−</button>
               <span className="w-10 text-center">{i.qty}</span>
-              <button className="w-8 h-8 rounded border text-sm" onClick={() => updateItemQty(i.id, 1)}>+</button>
+              <button className="w-8 h-8 rounded border text-sm" onClick={() => updateItemQty(listId!, i.id, i.qty + 1)}>+</button>
             </div>
             <button className="text-sm text-red-600" onClick={() => { if (confirm(`¿Quitar "${i.name}"?`)) removeItem(listId!, i.id) }}>✕</button>
           </li>
@@ -568,11 +557,11 @@ function Autocomplete({
   const filtered = options.filter((o) => o.toLowerCase().includes(value.toLowerCase()))
 
   useEffect(() => {
-    const onClick = (e: MouseEvent) => {
+    const onMouseDown = (e: MouseEvent) => {
       if (inputRef.current && !inputRef.current.contains(e.target as Node)) setOpen(false)
     }
-    document.addEventListener('mousedown', onClick)
-    return () => document.removeEventListener('mousedown', onClick)
+    document.addEventListener('mousedown', onMouseDown)
+    return () => document.removeEventListener('mousedown', onMouseDown)
   }, [])
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -592,7 +581,7 @@ function Autocomplete({
       {open && filtered.length && (
         <ul className="absolute z-10 w-full mt-1 rounded border border-gray-300 bg-white shadow-md max-h-48 overflow-auto">
           {filtered.map((opt, i) => (
-            <li key={opt} className={`px-2 py-1.5 cursor-pointer ${i === highlighted ? 'bg-gray-100' : ''}`} onClick={() => { onChange(opt); onSelect?.(opt); setOpen(false) }}>{opt}</li>
+            <li key={opt} className={`px-2 py-1.5 cursor-pointer ${i === highlighted ? 'bg-gray-100' : ''}`} onMouseDown={(e) => { e.preventDefault(); onChange(opt); onSelect?.(opt); setOpen(false) }}>{opt}</li>
           ))}
         </ul>
       )}

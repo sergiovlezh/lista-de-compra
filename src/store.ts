@@ -12,6 +12,7 @@ export interface State {
   deleteList: (id: string) => void
   updateList: (id: string, patch: Partial<Pick<StoreList, 'store' | 'date' | 'note'>>) => void
   addItem: (listId: string, item: Omit<Item, 'id' | 'checked'>) => void
+  updateItemQty: (listId: string, itemId: string, qty: number) => void
   toggleItem: (listId: string, itemId: string) => void
   removeItem: (listId: string, itemId: string) => void
   rememberProduct: (barcode: string, memory: ProductMemory) => void
@@ -105,6 +106,19 @@ export const useStore = create<State>()(
           lists: s.lists.map((l) =>
             l.id === listId
               ? { ...l, items: l.items.filter((i) => i.id !== itemId) }
+              : l,
+          ),
+        })),
+      updateItemQty: (listId, itemId, qty) =>
+        set((s) => ({
+          lists: s.lists.map((l) =>
+            l.id === listId
+              ? {
+                  ...l,
+                  items: l.items.map((i) =>
+                    i.id === itemId ? { ...i, qty: Math.max(1, qty) } : i,
+                  ),
+                }
               : l,
           ),
         })),
