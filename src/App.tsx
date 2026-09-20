@@ -26,6 +26,57 @@ const stateColors: Record<ListState, 'default' | 'secondary' | 'success' | 'warn
   reviewed: 'success',
 }
 
+const FORMATS = [
+  Html5QrcodeSupportedFormats.EAN_13,
+  Html5QrcodeSupportedFormats.EAN_8,
+  Html5QrcodeSupportedFormats.UPC_A,
+  Html5QrcodeSupportedFormats.UPC_E,
+  Html5QrcodeSupportedFormats.CODE_128,
+  Html5QrcodeSupportedFormats.QR_CODE,
+]
+
+async function unlockAudio(): Promise<AudioContext> {
+  const AudioContext = window.AudioContext || (window as any).webkitAudioContext
+  const ctx = new AudioContext()
+  await ctx.resume().catch(() => {})
+  return ctx
+}
+
+function beep(ctx: AudioContext) {
+  const osc = ctx.createOscillator()
+  const gain = ctx.createGain()
+  osc.type = 'sine'
+  osc.frequency.value = 800
+  gain.gain.value = 0.3
+  osc.connect(gain)
+  gain.connect(ctx.destination)
+  osc.start()
+  gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.1)
+  osc.stop(ctx.currentTime + 0.1)
+}
+
+// ponytail: vibrate always fires, audio needs unlocked context from button click
+function playBeep(ctx: AudioContext | null) {
+  if ('vibrate' in navigator) navigator.vibrate(50)
+  if (!ctx) return
+  if (ctx.state === 'suspended') {
+    ctx.resume().then(() => beep(ctx)).catch(() => {})
+  } else {
+    beep(ctx)
+  }
+}
+
+function stopScanner(ref: { current: Html5Qrcode | null }) {
+  const scanner = ref.current
+  ref.current = null
+  if (scanner) {
+    scanner.stop().catch(() => {})
+    try {
+      scanner.clear()
+    } catch {}
+  }
+}
+
 const navLink = 'inline-flex items-center justify-center px-3 py-2 text-sm font-medium rounded-lg text-primary hover:bg-primary-light transition-colors min-h-[40px] touch-manipulation'
 const pageHeader = 'sticky top-0 z-40 flex items-center justify-between gap-2 px-4 py-3 bg-white/95 backdrop-blur-sm border-b border-border'
 
@@ -413,76 +464,27 @@ function Scanner() {
     try { scannerRef.current?.clear() } catch {}
   }, [])
 
-  const playBeep = () => {
-    // Always vibrate as feedback (works on mobile, no-op on desktop)
-    if ('vibrate' in navigator) {
-      navigator.vibrate(50)
-    }
-    const ctx = audioContextRef.current
-    if (!ctx) return
-    if (ctx.state === 'suspended') {
-      ctx.resume().then(() => playBeepInternal(ctx))
-    } else {
-      playBeepInternal(ctx)
-    }
-  }
-
-  const playBeepInternal = (ctx: AudioContext) => {
-    const osc = ctx.createOscillator()
-    const gain = ctx.createGain()
-    osc.type = 'sine'
-    osc.frequency.value = 800
-    gain.gain.value = 0.3
-    osc.connect(gain)
-    gain.connect(ctx.destination)
-    osc.start()
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.1)
-    osc.stop(ctx.currentTime + 0.1)
-  }
-
   const handleScanSuccess = (code: string) => {
     if (scannedRef.current === code) return
     scannedRef.current = code
     const known = useStore.getState().products[code]
     if (known) {
-      playBeep()
+      playBeep(audioContextRef.current)
       addItem(listId, { barcode: code, name: known.name, price: known.price })
-      // Navigate immediately - cleanup effect will stop the scanner
-      setTimeout(() => {
-        navigate(`/lists/${listId}`)
-      }, 100)
+      navigate(`/lists/${listId}`)
     } else {
-      // Stop scanner before showing miss form to avoid conflicts
-      const scanner = scannerRef.current
-      if (scanner) {
-        scanner.stop().catch(() => {})
-        try { scanner.clear() } catch {}
-        scannerRef.current = null
-      }
+      stopScanner(scannerRef)
       setStarted(false)
       setMiss({ barcode: code })
-      // Beep for ALL successful scans, including new products
-      playBeep()
+      playBeep(audioContextRef.current)
     }
   }
 
   const start = async () => {
     setError('')
     try {
-      // Create and unlock AudioContext on user gesture (button click)
-      const AudioContext = window.AudioContext || (window as any).webkitAudioContext
-      const ctx = new AudioContext()
-      await ctx.resume() // Unlock on user gesture
-      audioContextRef.current = ctx
-
-      const qr = new Html5Qrcode('reader', {
-        formatsToSupport: [
-          Html5QrcodeSupportedFormats.EAN_13, Html5QrcodeSupportedFormats.EAN_8,
-          Html5QrcodeSupportedFormats.UPC_A, Html5QrcodeSupportedFormats.UPC_E,
-          Html5QrcodeSupportedFormats.CODE_128, Html5QrcodeSupportedFormats.QR_CODE,
-        ],
-        verbose: false,
-      })
+      audioContextRef.current = await unlockAudio()
+      const qr = new Html5Qrcode('reader', { formatsToSupport: FORMATS, verbose: false })
       scannerRef.current = qr
       setStarted(true)
       await qr.start(
@@ -498,12 +500,7 @@ function Scanner() {
   }
 
   const stop = () => {
-    const scanner = scannerRef.current
-    if (scanner) {
-      scanner.stop().catch(() => {})
-      try { scanner.clear() } catch {}
-      scannerRef.current = null
-    }
+    stopScanner(scannerRef)
     setStarted(false)
     navigate(`/lists/${listId}`)
   }
@@ -672,48 +669,12 @@ function ProductForm() {
     }
   }
 
-  const playBeep = () => {
-    if ('vibrate' in navigator) navigator.vibrate(50)
-    const ctx = audioContextRef.current
-    if (!ctx) return
-    if (ctx.state === 'suspended') {
-      ctx.resume().then(() => playBeepInternal(ctx))
-    } else {
-      playBeepInternal(ctx)
-    }
-  }
-
-  const playBeepInternal = (ctx: AudioContext) => {
-    const osc = ctx.createOscillator()
-    const gain = ctx.createGain()
-    osc.type = 'sine'
-    osc.frequency.value = 800
-    gain.gain.value = 0.3
-    osc.connect(gain)
-    gain.connect(ctx.destination)
-    osc.start()
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.1)
-    osc.stop(ctx.currentTime + 0.1)
-  }
-
   const startScan = async () => {
     setScanError('')
     setScanning(true)
     try {
-      // Create and unlock AudioContext on user gesture (button click)
-      const AudioContext = window.AudioContext || (window as any).webkitAudioContext
-      const ctx = new AudioContext()
-      await ctx.resume()
-      audioContextRef.current = ctx
-
-      const qr = new Html5Qrcode('product-scanner', {
-        formatsToSupport: [
-          Html5QrcodeSupportedFormats.EAN_13, Html5QrcodeSupportedFormats.EAN_8,
-          Html5QrcodeSupportedFormats.UPC_A, Html5QrcodeSupportedFormats.UPC_E,
-          Html5QrcodeSupportedFormats.CODE_128, Html5QrcodeSupportedFormats.QR_CODE,
-        ],
-        verbose: false,
-      })
+      audioContextRef.current = await unlockAudio()
+      const qr = new Html5Qrcode('product-scanner', { formatsToSupport: FORMATS, verbose: false })
       scannerRef.current = qr
       await qr.start(
         { facingMode: 'environment' },
@@ -724,7 +685,7 @@ function ProductForm() {
           if (known) {
             setName(known.name)
             setPrice(known.price.toString())
-            playBeep()
+            playBeep(audioContextRef.current)
           }
           stopScan()
         },
@@ -737,12 +698,7 @@ function ProductForm() {
   }
 
   const stopScan = () => {
-    const scanner = scannerRef.current
-    if (scanner) {
-      scanner.stop().catch(() => {})
-      try { scanner.clear() } catch {}
-      scannerRef.current = null
-    }
+    stopScanner(scannerRef)
     setScanning(false)
   }
 
