@@ -298,9 +298,49 @@
 }
 
 /* Scanner camera fix */
-#reader video {
+#reader video,
+#product-scanner video {
   width: 100% !important;
   height: 100% !important;
   object-fit: cover;
   border-radius: inherit;
+}
+
+/* Scanner cutout - border frame only, no dark overlay */
+.scanner-cutout {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 80%;
+  aspect-ratio: 16 / 10;
+  border: 3px solid var(--color-primary);
+  border-radius: 8px;
+  pointer-events: none;
+  z-index: 10;
+}
+
+/* Scanning line animation */
+.scanner-line {
+  position: absolute;
+  left: 10%;
+  right: 10%;
+  height: 2px;
+  background: var(--color-primary);
+  box-shadow: 0 0 8px var(--color-primary);
+  border-radius: 1px;
+  animation: scanner-sweep 2.5s ease-in-out infinite alternate;
+  pointer-events: none;
+  z-index: 20;
+}
+
+@keyframes scanner-sweep {
+  0% {
+    top: 5%;
+    opacity: 0.7;
+  }
+  100% {
+    top: 95%;
+    opacity: 1;
+  }
 }
