@@ -392,42 +392,6 @@ function Detail() {
   )
 }
 
-// Web Audio API beep - works reliably everywhere
-function playBeep() {
-  try {
-    const AudioContext = window.AudioContext || (window as any).webkitAudioContext
-    const ctx = new AudioContext()
-    
-    // Resume context if suspended (autoplay policy)
-    if (ctx.state === 'suspended') {
-      ctx.resume().then(() => {
-        playBeepInternal(ctx)
-      })
-      return
-    }
-    
-    playBeepInternal(ctx)
-  } catch (e) {
-    console.warn('Web Audio API failed, using fallback:', e)
-    // Fallback: simple beep via audio element
-    const audio = new Audio('data:audio/wav;base64,UklGRjIAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQYAAAD//w==')
-    audio.volume = 0.5
-    audio.play().catch((e) => console.warn('Audio fallback failed:', e))
-  }
-}
-
-function playBeepInternal(ctx: AudioContext) {
-  const osc = ctx.createOscillator()
-  const gain = ctx.createGain()
-  osc.type = 'sine'
-  osc.frequency.value = 800
-  gain.gain.value = 0.3
-  osc.connect(gain)
-  gain.connect(ctx.destination)
-  osc.start()
-  gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.1)
-  osc.stop(ctx.currentTime + 0.1)
-}
 
 function Scanner() {
   const { listId } = useParams<{ listId: string }>()
@@ -442,11 +406,39 @@ function Scanner() {
   const [missPrice, setMissPrice] = useState('')
   const scannerRef = useRef<Html5Qrcode | null>(null)
   const scannedRef = useRef('')
+  const audioContextRef = useRef<AudioContext | null>(null)
 
   useEffect(() => () => {
     scannerRef.current?.stop().catch(() => {})
     try { scannerRef.current?.clear() } catch {}
   }, [])
+
+  const playBeep = () => {
+    // Always vibrate as feedback (works on mobile, no-op on desktop)
+    if ('vibrate' in navigator) {
+      navigator.vibrate(50)
+    }
+    const ctx = audioContextRef.current
+    if (!ctx) return
+    if (ctx.state === 'suspended') {
+      ctx.resume().then(() => playBeepInternal(ctx))
+    } else {
+      playBeepInternal(ctx)
+    }
+  }
+
+  const playBeepInternal = (ctx: AudioContext) => {
+    const osc = ctx.createOscillator()
+    const gain = ctx.createGain()
+    osc.type = 'sine'
+    osc.frequency.value = 800
+    gain.gain.value = 0.3
+    osc.connect(gain)
+    gain.connect(ctx.destination)
+    osc.start()
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.1)
+    osc.stop(ctx.currentTime + 0.1)
+  }
 
   const handleScanSuccess = (code: string) => {
     if (scannedRef.current === code) return
@@ -460,7 +452,7 @@ function Scanner() {
         navigate(`/lists/${listId}`)
       }, 100)
     } else {
-      stop()
+      // Don't stop() here - let the miss form show, cleanup effect will handle scanner
       setMiss({ barcode: code })
     }
   }
@@ -468,6 +460,12 @@ function Scanner() {
   const start = async () => {
     setError('')
     try {
+      // Create and unlock AudioContext on user gesture (button click)
+      const AudioContext = window.AudioContext || (window as any).webkitAudioContext
+      const ctx = new AudioContext()
+      await ctx.resume() // Unlock on user gesture
+      audioContextRef.current = ctx
+
       const qr = new Html5Qrcode('reader', {
         formatsToSupport: [
           Html5QrcodeSupportedFormats.EAN_13, Html5QrcodeSupportedFormats.EAN_8,
@@ -633,6 +631,7 @@ function ProductForm() {
   const [scanning, setScanning] = useState(false)
   const [scanError, setScanError] = useState('')
   const scannerRef = useRef<Html5Qrcode | null>(null)
+  const audioContextRef = useRef<AudioContext | null>(null)
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault()
@@ -664,10 +663,40 @@ function ProductForm() {
     }
   }
 
+  const playBeep = () => {
+    if ('vibrate' in navigator) navigator.vibrate(50)
+    const ctx = audioContextRef.current
+    if (!ctx) return
+    if (ctx.state === 'suspended') {
+      ctx.resume().then(() => playBeepInternal(ctx))
+    } else {
+      playBeepInternal(ctx)
+    }
+  }
+
+  const playBeepInternal = (ctx: AudioContext) => {
+    const osc = ctx.createOscillator()
+    const gain = ctx.createGain()
+    osc.type = 'sine'
+    osc.frequency.value = 800
+    gain.gain.value = 0.3
+    osc.connect(gain)
+    gain.connect(ctx.destination)
+    osc.start()
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.1)
+    osc.stop(ctx.currentTime + 0.1)
+  }
+
   const startScan = async () => {
     setScanError('')
     setScanning(true)
     try {
+      // Create and unlock AudioContext on user gesture (button click)
+      const AudioContext = window.AudioContext || (window as any).webkitAudioContext
+      const ctx = new AudioContext()
+      await ctx.resume()
+      audioContextRef.current = ctx
+
       const qr = new Html5Qrcode('product-scanner', {
         formatsToSupport: [
           Html5QrcodeSupportedFormats.EAN_13, Html5QrcodeSupportedFormats.EAN_8,
@@ -686,6 +715,7 @@ function ProductForm() {
           if (known) {
             setName(known.name)
             setPrice(known.price.toString())
+            playBeep()
           }
           stopScan()
         },
@@ -698,8 +728,12 @@ function ProductForm() {
   }
 
   const stopScan = () => {
-    scannerRef.current?.stop().catch(() => {})
-    try { scannerRef.current?.clear() } catch {}
+    const scanner = scannerRef.current
+    if (scanner) {
+      scanner.stop().catch(() => {})
+      try { scanner.clear() } catch {}
+      scannerRef.current = null
+    }
     setScanning(false)
   }
 
