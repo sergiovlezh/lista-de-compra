@@ -12,7 +12,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Separator } from '@/components/ui/separator'
 import { Badge } from '@/components/ui/badge'
-import { Trash2, Camera, Plus, Minus, X, RotateCcw, ArrowLeft } from 'lucide-react'
+import { Trash2, Camera, Plus, Minus, X, RotateCcw, ArrowLeft, Zap, ZoomIn, ZoomOut } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const stateLabels: Record<ListState, string> = {
@@ -104,7 +104,7 @@ function Lists() {
         </div>
         <div className="p-4 space-y-3">
           <form
-            className="flex flex-col gap-3 sm:flex-row"
+            className="flex flex-col gap-3"
             onSubmit={(e) => {
               e.preventDefault()
               createList(store.trim() || 'Sin tienda', date)
@@ -116,11 +116,13 @@ function Lists() {
               <Label htmlFor="new-list-store" className="block text-sm font-medium text-text mb-1.5">Tienda</Label>
               <Input id="new-list-store" placeholder="Ej: Mercadona" value={store} onChange={(e) => setStore(e.target.value)} />
             </div>
-            <div className="w-full sm:w-[160px]">
-              <Label htmlFor="new-list-date" className="block text-sm font-medium text-text mb-1.5">Fecha</Label>
-              <Input id="new-list-date" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+            <div className="flex flex-col sm:flex-row gap-3">
+              <div className="w-full sm:w-[160px]">
+                <Label htmlFor="new-list-date" className="block text-sm font-medium text-text mb-1.5">Fecha</Label>
+                <Input id="new-list-date" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+              </div>
+              <Button type="submit" className="btn-primary btn-block btn-lg sm:self-end sm:w-auto" style={{ minWidth: '140px' }}>+ Crear</Button>
             </div>
-            <Button type="submit" className="btn-primary btn-block sm:self-end" style={{ minWidth: '140px' }}>+ Crear</Button>
           </form>
         </div>
       </section>
@@ -209,7 +211,6 @@ function Detail() {
   const [barcode, setBarcode] = useState('')
   const [name, setName] = useState('')
   const [price, setPrice] = useState('')
-  const [qty, setQty] = useState(1)
   const [deleteConfirmItemId, setDeleteConfirmItemId] = useState<string | null>(null)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const productNames = Object.values(products).map((p: ProductMemory) => p.name).filter(Boolean)
@@ -231,11 +232,10 @@ function Detail() {
           finalPrice = known.price
       }
     }
-    addItem(listId!, { barcode: code, name: finalName, price: finalPrice, qty })
+    addItem(listId!, { barcode: code, name: finalName, price: finalPrice })
     setBarcode('')
     setName('')
     setPrice('')
-    setQty(1)
   }
 
   const onNameSelect = (selectedName: string) => {
@@ -310,10 +310,6 @@ function Detail() {
               <Label htmlFor="add-price" className="sr-only">Precio</Label>
               <Input id="add-price" placeholder="$" inputMode="decimal" value={price} onChange={(e) => setPrice(e.target.value)} />
             </div>
-            <div className="w-full sm:w-[80px]">
-              <Label htmlFor="add-qty" className="sr-only">Cantidad</Label>
-              <Input id="add-qty" type="number" min="1" max="99" value={qty} onChange={(e) => setQty(parseInt(e.target.value) || 1)} />
-            </div>
             <Button type="submit" className="btn-primary btn-lg self-end" style={{ minWidth: '100px' }}>+</Button>
           </form>
 
@@ -331,7 +327,8 @@ function Detail() {
         </div>
       ) : (
         <div className="rounded-xl border border-border bg-white shadow-sm overflow-hidden">
-          <div className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-2 px-3 py-2 text-xs font-medium text-text-muted border-b border-border bg-gray-50 sticky top-0 z-10">
+          <div className="grid grid-cols-[auto_1fr_auto_auto_auto_auto] gap-2 px-3 py-2 text-xs font-medium text-text-muted border-b border-border bg-gray-50 sticky top-0 z-10">
+            <div className="w-6"></div>
             <div>Producto</div>
             <div className="text-center w-20">Cant.</div>
             <div className="text-right pr-3 w-24">Precio</div>
@@ -340,7 +337,8 @@ function Detail() {
           </div>
           <ul className="divide-y divide-border scrollbar-thin max-h-[60vh] overflow-auto">
             {list.items.map((i: Item) => (
-              <li key={i.id} className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-2 px-3 py-3 items-center">
+              <li key={i.id} className="grid grid-cols-[auto_1fr_auto_auto_auto_auto] gap-2 px-3 py-3 items-center">
+                <Checkbox checked={i.checked} onCheckedChange={() => toggleItem(listId!, i.id)} className="h-5 w-5" />
                 <div className="min-w-0">
                   <div className={cn('font-medium truncate', i.checked ? 'line-through text-text-muted' : 'text-text')}>{i.name}</div>
                   {i.barcode && <div className="text-xs text-text-muted truncate">{i.barcode}</div>}
@@ -356,12 +354,9 @@ function Detail() {
                 </div>
                 <div className="text-right pr-3 w-24 text-sm text-text">${i.price.toFixed(2)}</div>
                 <div className="text-right pr-3 w-28 text-sm font-medium text-primary">${(i.price * i.qty).toFixed(2)}</div>
-                <div className="flex items-center justify-end gap-2 w-12">
-                  <Checkbox checked={i.checked} onCheckedChange={() => toggleItem(listId!, i.id)} className="h-5 w-5" />
-                  <Button variant="ghost" size="icon" onClick={() => { setDeleteConfirmItemId(i.id); setShowDeleteConfirm(true) }} aria-label="Eliminar">
-                    <Trash2 className="h-5 w-5 text-destructive" />
-                  </Button>
-                </div>
+                <Button variant="ghost" size="icon" onClick={() => { setDeleteConfirmItemId(i.id); setShowDeleteConfirm(true) }} aria-label="Eliminar">
+                  <Trash2 className="h-5 w-5 text-destructive" />
+                </Button>
               </li>
             ))}
           </ul>
@@ -409,9 +404,12 @@ function Scanner() {
   const [missName, setMissName] = useState('')
   const [missPrice, setMissPrice] = useState('')
   const [permissionDenied, setPermissionDenied] = useState(false)
+  const [torch, setTorch] = useState(false)
+  const [zoom, setZoom] = useState(1)
   const scannerRef = useRef<Html5Qrcode | null>(null)
   const scannedRef = useRef('')
   const isMounted = useRef(true)
+  const videoTrackRef = useRef<MediaStreamTrack | null>(null)
 
   useEffect(() => {
     isMounted.current = true
@@ -419,12 +417,35 @@ function Scanner() {
       isMounted.current = false
       scannerRef.current?.stop().catch(() => {})
       try { scannerRef.current?.clear() } catch {}
+      videoTrackRef.current?.stop()
     }
   }, [])
+
+  const requestCameraPermission = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment' }
+      })
+      stream.getTracks().forEach(track => track.stop())
+      return true
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : String(err)
+      if (errorMessage.includes('permission') || errorMessage.includes('denied') || errorMessage.includes('NotAllowedError')) {
+        setPermissionDenied(true)
+        setError('Permiso de cámara denegado. Actívalo en la configuración del navegador.')
+      } else {
+        setError('No se pudo acceder a la cámara. Verifica los permisos.')
+      }
+      return false
+    }
+  }
 
   const start = async () => {
     setError('')
     setPermissionDenied(false)
+    const hasPermission = await requestCameraPermission()
+    if (!hasPermission || !isMounted.current) return
+
     try {
       const qr = new Html5Qrcode('reader', {
         formatsToSupport: [
@@ -445,7 +466,7 @@ function Scanner() {
           scannedRef.current = code
           const known = useStore.getState().products[code]
           if (known) {
-            addItem(listId, { barcode: code, name: known.name, price: known.price, qty: 1 })
+            addItem(listId, { barcode: code, name: known.name, price: known.price })
             navigate(`/lists/${listId}`)
           } else {
             setMiss({ barcode: code })
@@ -455,6 +476,16 @@ function Scanner() {
           // Silently ignore scan errors (no code found)
         }
       )
+
+      // Get video track for torch/zoom control
+      setTimeout(() => {
+        const videoEl = document.querySelector('#reader video') as HTMLVideoElement
+        if (videoEl && videoEl.srcObject) {
+          const stream = videoEl.srcObject as MediaStream
+          videoTrackRef.current = stream.getVideoTracks()[0] || null
+        }
+      }, 500)
+
     } catch (err) {
       if (!isMounted.current) return
       const errorMessage = err instanceof Error ? err.message : String(err)
@@ -471,8 +502,35 @@ function Scanner() {
   const stop = () => {
     scannerRef.current?.stop().catch(() => {})
     try { scannerRef.current?.clear() } catch {}
+    videoTrackRef.current?.stop()
+    videoTrackRef.current = null
     setStarted(false)
+    setTorch(false)
+    setZoom(1)
     navigate(`/lists/${listId}`)
+  }
+
+  const toggleTorch = async () => {
+    if (videoTrackRef.current) {
+      try {
+        await videoTrackRef.current.applyConstraints({ advanced: [{ torch: !torch }] } as unknown as MediaTrackConstraints)
+        setTorch(!torch)
+      } catch {
+        // Torch not supported
+      }
+    }
+  }
+
+  const changeZoom = (delta: number) => {
+    const newZoom = Math.min(Math.max(zoom + delta, 1), 5)
+    setZoom(newZoom)
+    if (videoTrackRef.current) {
+      try {
+        videoTrackRef.current.applyConstraints({ advanced: [{ zoom: newZoom }] } as unknown as MediaTrackConstraints)
+      } catch {
+        // Zoom not supported
+      }
+    }
   }
 
   if (miss)
@@ -483,7 +541,7 @@ function Scanner() {
             <h2 className="text-lg font-semibold text-text">Código nuevo: <span className="font-mono text-primary">{miss.barcode}</span></h2>
             <form className="space-y-4" onSubmit={(e) => {
               e.preventDefault()
-              addItem(listId, { barcode: miss.barcode, name: missName.trim() || miss.barcode, price: parseFloat(missPrice) || 0, qty: 1 })
+              addItem(listId, { barcode: miss.barcode, name: missName.trim() || miss.barcode, price: parseFloat(missPrice) || 0 })
               navigate(`/lists/${listId}`)
             }}>
               <div>
@@ -527,13 +585,29 @@ function Scanner() {
         </div>
       ) : (
         <div className="space-y-4">
-          <div className="rounded-xl border border-border bg-white shadow-sm overflow-hidden">
+          <div className="rounded-xl border border-border bg-white shadow-sm overflow-hidden relative">
             <div id="reader" className="w-full aspect-video bg-black relative" style={{ minHeight: '300px' }} />
-          </div>
-          <div className="flex items-center justify-center gap-3 p-4">
-            <Button variant="destructive" className="btn-block btn-lg sm:btn-sm" onClick={stop} style={{ minWidth: '160px' }}>
-              <X className="h-5 w-5 mr-2" /> Cancelar
-            </Button>
+            {started && (
+              <div className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black/80 to-transparent">
+                <div className="flex items-center justify-center gap-3 mb-2">
+                  <Button variant="ghost" size="icon" onClick={toggleTorch} className={torch ? 'bg-yellow-500 text-black' : ''} aria-label={torch ? 'Apagar flash' : 'Encender flash'}>
+                    <Zap className="h-5 w-5" />
+                  </Button>
+                  <Button variant="ghost" size="icon" onClick={() => changeZoom(-0.5)} disabled={zoom <= 1} aria-label="Alejar">
+                    <ZoomOut className="h-5 w-5" />
+                  </Button>
+                  <span className="text-white text-sm font-medium min-w-[40px] text-center">{Math.round(zoom * 100)}%</span>
+                  <Button variant="ghost" size="icon" onClick={() => changeZoom(0.5)} disabled={zoom >= 5} aria-label="Acercar">
+                    <ZoomIn className="h-5 w-5" />
+                  </Button>
+                </div>
+                <div className="flex justify-center">
+                  <Button variant="destructive" className="btn-lg" onClick={stop} style={{ minWidth: '160px' }}>
+                    <X className="h-5 w-5 mr-2" /> Cancelar
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
           {error && <div className="rounded-xl border border-border bg-white shadow-sm p-4"><p className="text-center text-sm text-destructive">{error}</p></div>}
           {started && !error && (
@@ -724,15 +798,12 @@ function ProductForm() {
 
 function Settings() {
   const products = useStore((s: State) => s.products)
-  const importProducts = useStore((s: State) => s.importProducts)
-  const importLists = useStore((s: State) => s.importLists)
+  const importData = useStore((s: State) => s.importData)
   const exportData = useStore((s: State) => s.exportData)
-  const [importMode, setImportMode] = useState<'products' | 'lists'>('products')
   const [mergeMode, setMergeMode] = useState(true)
+  const [pasteJson, setPasteJson] = useState('')
 
-  const productEntries = Object.entries(products).sort(([, a], [, b]: [string, ProductMemory]) => b.updatedAt - a.updatedAt)
-
-  const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImportFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
     const reader = new FileReader()
@@ -741,26 +812,21 @@ function Settings() {
         let data: unknown
         if (file.name.endsWith('.json')) {
           data = JSON.parse(ev.target?.result as string)
-        } else if (file.name.endsWith('.csv')) {
-          const text = ev.target?.result as string
-          const lines = text.trim().split('\n')
-          const headers = lines[0].split(',').map((h) => h.trim())
-          data = lines.slice(1).map((line) => {
-            const vals = line.split(',').map((v) => v.trim())
-            return Object.fromEntries(headers.map((h, i) => [h, vals[i]]))
-          })
         } else {
-          alert('Formato no soportado. Use .json o .csv')
+          alert('Formato no soportado. Use .json')
           return
         }
-        if (importMode === 'products') {
-          const productsData = data as Record<string, { name: string; price: number; updatedAt: number }>
-          importProducts(productsData, mergeMode)
-        } else {
-          const listsData = data as StoreList[]
-          importLists(listsData, mergeMode)
+        // Handle both old format (products only) and new format (products + lists)
+        const importObj = data as { products?: Record<string, ProductMemory>; lists?: StoreList[] }
+        if (importObj.products || importObj.lists) {
+          importData({ products: importObj.products || {}, lists: importObj.lists || [] }, mergeMode)
+        } else if (typeof data === 'object' && data !== null) {
+          // Old format: products only
+          importData({ products: data as Record<string, ProductMemory>, lists: [] }, mergeMode)
         }
-        alert(`Importados correctamente (${importMode})`)
+        alert('Importados correctamente')
+        setPasteJson('')
+        e.target.value = ''
       } catch {
         alert('Error al importar. Verifique el formato del archivo.')
       }
@@ -768,28 +834,38 @@ function Settings() {
     reader.readAsText(file)
   }
 
-  const handleExport = (includeLists: boolean) => {
-    const json = exportData(includeLists)
+  const handleImportPaste = () => {
+    if (!pasteJson.trim()) return
+    try {
+      const data = JSON.parse(pasteJson)
+      const importObj = data as { products?: Record<string, ProductMemory>; lists?: StoreList[] }
+      if (importObj.products || importObj.lists) {
+        importData({ products: importObj.products || {}, lists: importObj.lists || [] }, mergeMode)
+      } else {
+        importData({ products: data as Record<string, ProductMemory>, lists: [] }, mergeMode)
+      }
+      alert('Importados correctamente')
+      setPasteJson('')
+    } catch {
+      alert('Error al importar. Verifique el formato JSON.')
+    }
+  }
+
+  const handleExport = () => {
+    const json = exportData()
     const blob = new Blob([json], { type: 'application/json' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `lista-de-compra-${includeLists ? 'full' : 'products'}-${Date.now()}.json`
+    a.download = `lista-de-compra-${Date.now()}.json`
     a.click()
     URL.revokeObjectURL(url)
   }
 
-  const handleExportCSV = () => {
-    const headers = ['barcode', 'name', 'price', 'updatedAt']
-    const rows = productEntries.map(([barcode, p]: [string, ProductMemory]) => [barcode, p.name, p.price.toString(), p.updatedAt.toString()])
-    const csv = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n')
-    const blob = new Blob([csv], { type: 'text/csv' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `products-${Date.now()}.csv`
-    a.click()
-    URL.revokeObjectURL(url)
+  const handleCopyJson = () => {
+    const json = exportData()
+    navigator.clipboard.writeText(json)
+    alert('JSON copiado al portapapeles')
   }
 
   return (
@@ -798,25 +874,26 @@ function Settings() {
 
       <section className="rounded-xl border border-border bg-white shadow-sm">
         <div className="px-4 py-3 border-b border-border">
-          <h3 className="font-medium text-text">Importar / Exportar</h3>
+          <h3 className="font-medium text-text">Importar / Exportar (JSON)</h3>
         </div>
         <div className="p-4 space-y-4">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-            <Label className="flex items-center gap-2 text-sm" htmlFor="import-products">
-              <input type="radio" name="importMode" id="import-products" checked={importMode === 'products'} onChange={() => setImportMode('products')} className="h-4 w-4 text-primary" /> Productos
-            </Label>
-            <Label className="flex items-center gap-2 text-sm" htmlFor="import-lists">
-              <input type="radio" name="importMode" id="import-lists" checked={importMode === 'lists'} onChange={() => setImportMode('lists')} className="h-4 w-4 text-primary" /> Listas
-            </Label>
-            <Label className="flex items-center gap-2 text-sm" htmlFor="import-merge">
-              <input type="checkbox" id="import-merge" checked={mergeMode} onChange={(e) => setMergeMode(e.target.checked)} className="h-4 w-4 text-primary rounded border-border" /> Fusionar
+          <div>
+            <Label htmlFor="import-merge" className="flex items-center gap-2 text-sm">
+              <input type="checkbox" id="import-merge" checked={mergeMode} onChange={(e) => setMergeMode(e.target.checked)} className="h-4 w-4 text-primary rounded border-border" /> Fusionar (no reemplazar)
             </Label>
           </div>
-          <Input type="file" accept=".json,.csv" onChange={handleImport} />
+          <div className="space-y-3">
+            <Label htmlFor="import-file" className="block text-sm font-medium text-text mb-1.5">Archivo JSON</Label>
+            <Input type="file" id="import-file" accept=".json" onChange={handleImportFile} />
+            <Button variant="outline" className="btn-block" onClick={handleImportPaste} disabled={!pasteJson.trim()}>Importar desde texto pegado</Button>
+          </div>
+          <div>
+            <Label htmlFor="paste-json" className="block text-sm font-medium text-text mb-1.5">O pegar JSON directamente</Label>
+            <Textarea id="paste-json" rows={4} placeholder="Pegue aquí el JSON exportado..." value={pasteJson} onChange={(e) => setPasteJson(e.target.value)} />
+          </div>
           <div className="flex flex-col gap-2 sm:flex-row">
-            <Button variant="outline" className="btn-block sm:flex-1" onClick={() => handleExport(false)}>Exportar productos (JSON)</Button>
-            <Button variant="outline" className="btn-block sm:flex-1" onClick={() => handleExport(true)}>Exportar todo (JSON)</Button>
-            <Button variant="outline" className="btn-block sm:flex-1" onClick={handleExportCSV}>Exportar productos (CSV)</Button>
+            <Button variant="outline" className="btn-block sm:flex-1" onClick={handleExport}>Descargar JSON</Button>
+            <Button variant="outline" className="btn-block sm:flex-1" onClick={handleCopyJson}>Copiar JSON al portapapeles</Button>
           </div>
         </div>
       </section>

@@ -11,16 +11,15 @@ export interface State {
   createList: (store: string, date: string) => string
   deleteList: (id: string) => void
   updateList: (id: string, patch: Partial<Pick<StoreList, 'store' | 'date' | 'note' | 'state'>>) => void
-  addItem: (listId: string, item: Omit<Item, 'id' | 'checked'>) => void
+  addItem: (listId: string, item: Omit<Item, 'id' | 'checked' | 'qty'>) => void
   updateItemQty: (listId: string, itemId: string, qty: number) => void
   toggleItem: (listId: string, itemId: string) => void
   removeItem: (listId: string, itemId: string) => void
   rememberProduct: (barcode: string, memory: ProductMemory) => void
   updateProduct: (barcode: string, memory: Partial<ProductMemory>) => void
   deleteProduct: (barcode: string) => void
-  importProducts: (data: Record<string, ProductMemory>, merge: boolean) => void
-  importLists: (lists: StoreList[], merge: boolean) => void
-  exportData: (includeLists: boolean) => string
+  importData: (data: { products: Record<string, ProductMemory>; lists: StoreList[] }, merge: boolean) => void
+  exportData: () => string
 }
 
 const initialState = {
@@ -68,10 +67,10 @@ export const useStore = create<State>()(
           let newItems: Item[]
           if (existingIdx >= 0) {
             newItems = list.items.map((i, idx) =>
-              idx === existingIdx ? { ...i, qty: i.qty + (item.qty || 1) } : i
+              idx === existingIdx ? { ...i, qty: i.qty + 1 } : i
             )
           } else {
-            newItems = [...list.items, { ...item, id: uid(), checked: false, qty: item.qty || 1 }]
+            newItems = [...list.items, { ...item, id: uid(), checked: false, qty: 1 }]
           }
 
           return {
@@ -133,20 +132,14 @@ export const useStore = create<State>()(
           const { [barcode]: _, ...rest } = s.products
           return { products: rest }
         }),
-      importProducts: (data, merge) =>
+      importData: (data, merge) =>
         set((s) => ({
-          products: merge ? { ...s.products, ...data } : data,
+          products: merge ? { ...s.products, ...(data.products || {}) } : (data.products || {}),
+          lists: merge ? [...s.lists, ...(data.lists || [])] : (data.lists || []),
         })),
-      importLists: (lists, merge) =>
-        set((s) => ({
-          lists: merge ? [...s.lists, ...lists] : lists,
-        })),
-      exportData: (includeLists): string => {
+      exportData: (): string => {
         const state = get()
-        const exportObj = includeLists
-          ? { products: state.products, lists: state.lists }
-          : { products: state.products }
-        return JSON.stringify(exportObj, null, 2)
+        return JSON.stringify({ products: state.products, lists: state.lists }, null, 2)
       },
     }),
     { name: 'ldc:v1' },
