@@ -327,7 +327,7 @@ function Detail() {
         </div>
       ) : (
         <div className="rounded-xl border border-border bg-white shadow-sm overflow-hidden">
-          <div className="grid grid-cols-[auto_1fr_auto_auto_auto_auto] gap-2 px-3 py-2 text-xs font-medium text-text-muted border-b border-border bg-gray-50 sticky top-0 z-10">
+          <div className="hidden sm:grid grid-cols-[auto_1fr_auto_auto_auto_auto] gap-2 px-3 py-2 text-xs font-medium text-text-muted border-b border-border bg-gray-50 sticky top-0 z-10">
             <div className="w-6"></div>
             <div>Producto</div>
             <div className="text-center w-20">Cant.</div>
@@ -337,26 +337,30 @@ function Detail() {
           </div>
           <ul className="divide-y divide-border scrollbar-thin max-h-[60vh] overflow-auto">
             {list.items.map((i: Item) => (
-              <li key={i.id} className="grid grid-cols-[auto_1fr_auto_auto_auto_auto] gap-2 px-3 py-3 items-center">
-                <Checkbox checked={i.checked} onCheckedChange={() => toggleItem(listId!, i.id)} className="h-5 w-5" />
-                <div className="min-w-0">
-                  <div className={cn('font-medium truncate', i.checked ? 'line-through text-text-muted' : 'text-text')}>{i.name}</div>
-                  {i.barcode && <div className="text-xs text-text-muted truncate">{i.barcode}</div>}
-                </div>
-                <div className="flex items-center justify-center gap-1 w-20">
-                  <Button variant="ghost" size="icon" onClick={() => handleQtyChange(i.id, i.qty - 1)} disabled={i.qty <= 1} aria-label="Decrementar">
-                    <Minus className="h-5 w-5" />
-                  </Button>
-                  <span className="w-10 text-center font-medium text-text">{i.qty}</span>
-                  <Button variant="ghost" size="icon" onClick={() => handleQtyChange(i.id, i.qty + 1)} aria-label="Incrementar">
-                    <Plus className="h-5 w-5" />
+              <li key={i.id} className="px-3 py-3 sm:grid sm:grid-cols-[auto_1fr_auto_auto_auto_auto] sm:gap-2 sm:items-center">
+                <div className="flex items-center gap-2 sm:contents">
+                  <Checkbox checked={i.checked} onCheckedChange={() => toggleItem(listId!, i.id)} className="h-5 w-5" />
+                  <div className="flex-1 min-w-0">
+                    <div className={cn('font-medium truncate', i.checked ? 'line-through text-gray-400' : 'text-text')}>{i.name}</div>
+                    {i.barcode && <div className="text-xs text-gray-500 truncate">{i.barcode}</div>}
+                  </div>
+                  <Button variant="ghost" size="icon" className="sm:col-start-6" onClick={() => { setDeleteConfirmItemId(i.id); setShowDeleteConfirm(true) }} aria-label="Eliminar">
+                    <Trash2 className="h-5 w-5 text-destructive" />
                   </Button>
                 </div>
-                <div className="text-right pr-3 w-24 text-sm text-text">${i.price.toFixed(2)}</div>
-                <div className="text-right pr-3 w-28 text-sm font-medium text-primary">${(i.price * i.qty).toFixed(2)}</div>
-                <Button variant="ghost" size="icon" onClick={() => { setDeleteConfirmItemId(i.id); setShowDeleteConfirm(true) }} aria-label="Eliminar">
-                  <Trash2 className="h-5 w-5 text-destructive" />
-                </Button>
+                <div className="mt-1 flex items-center gap-2 pl-7 sm:contents">
+                  <div className="flex items-center justify-center gap-1 w-20">
+                    <Button variant="ghost" size="icon" onClick={() => handleQtyChange(i.id, i.qty - 1)} disabled={i.qty <= 1} aria-label="Decrementar">
+                      <Minus className="h-5 w-5" />
+                    </Button>
+                    <span className="w-10 text-center font-medium text-text">{i.qty}</span>
+                    <Button variant="ghost" size="icon" onClick={() => handleQtyChange(i.id, i.qty + 1)} aria-label="Incrementar">
+                      <Plus className="h-5 w-5" />
+                    </Button>
+                  </div>
+                  <div className="text-right pr-3 w-24 text-sm text-text">${i.price.toFixed(2)}</div>
+                  <div className="text-right pr-3 w-28 text-sm font-medium text-primary">${(i.price * i.qty).toFixed(2)}</div>
+                </div>
               </li>
             ))}
           </ul>
