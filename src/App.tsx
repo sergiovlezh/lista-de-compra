@@ -12,7 +12,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Separator } from '@/components/ui/separator'
 import { Badge } from '@/components/ui/badge'
-import { Trash2, Camera, Plus, Minus, X, RotateCcw, ArrowLeft, Zap, ZoomIn, ZoomOut } from 'lucide-react'
+import { Trash2, Camera, Plus, Minus, X, RotateCcw, ArrowLeft } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const stateLabels: Record<ListState, string> = {
@@ -404,12 +404,9 @@ function Scanner() {
   const [missName, setMissName] = useState('')
   const [missPrice, setMissPrice] = useState('')
   const [permissionDenied, setPermissionDenied] = useState(false)
-  const [torch, setTorch] = useState(false)
-  const [zoom, setZoom] = useState(1)
   const scannerRef = useRef<Html5Qrcode | null>(null)
   const scannedRef = useRef('')
   const isMounted = useRef(true)
-  const videoTrackRef = useRef<MediaStreamTrack | null>(null)
 
   useEffect(() => {
     isMounted.current = true
@@ -417,35 +414,12 @@ function Scanner() {
       isMounted.current = false
       scannerRef.current?.stop().catch(() => {})
       try { scannerRef.current?.clear() } catch {}
-      videoTrackRef.current?.stop()
     }
   }, [])
-
-  const requestCameraPermission = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment' }
-      })
-      stream.getTracks().forEach(track => track.stop())
-      return true
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : String(err)
-      if (errorMessage.includes('permission') || errorMessage.includes('denied') || errorMessage.includes('NotAllowedError')) {
-        setPermissionDenied(true)
-        setError('Permiso de cámara denegado. Actívalo en la configuración del navegador.')
-      } else {
-        setError('No se pudo acceder a la cámara. Verifica los permisos.')
-      }
-      return false
-    }
-  }
 
   const start = async () => {
     setError('')
     setPermissionDenied(false)
-    const hasPermission = await requestCameraPermission()
-    if (!hasPermission || !isMounted.current) return
-
     try {
       const qr = new Html5Qrcode('reader', {
         formatsToSupport: [
@@ -476,16 +450,6 @@ function Scanner() {
           // Silently ignore scan errors (no code found)
         }
       )
-
-      // Get video track for torch/zoom control
-      setTimeout(() => {
-        const videoEl = document.querySelector('#reader video') as HTMLVideoElement
-        if (videoEl && videoEl.srcObject) {
-          const stream = videoEl.srcObject as MediaStream
-          videoTrackRef.current = stream.getVideoTracks()[0] || null
-        }
-      }, 500)
-
     } catch (err) {
       if (!isMounted.current) return
       const errorMessage = err instanceof Error ? err.message : String(err)
@@ -502,35 +466,8 @@ function Scanner() {
   const stop = () => {
     scannerRef.current?.stop().catch(() => {})
     try { scannerRef.current?.clear() } catch {}
-    videoTrackRef.current?.stop()
-    videoTrackRef.current = null
     setStarted(false)
-    setTorch(false)
-    setZoom(1)
     navigate(`/lists/${listId}`)
-  }
-
-  const toggleTorch = async () => {
-    if (videoTrackRef.current) {
-      try {
-        await videoTrackRef.current.applyConstraints({ advanced: [{ torch: !torch }] } as unknown as MediaTrackConstraints)
-        setTorch(!torch)
-      } catch {
-        // Torch not supported
-      }
-    }
-  }
-
-  const changeZoom = (delta: number) => {
-    const newZoom = Math.min(Math.max(zoom + delta, 1), 5)
-    setZoom(newZoom)
-    if (videoTrackRef.current) {
-      try {
-        videoTrackRef.current.applyConstraints({ advanced: [{ zoom: newZoom }] } as unknown as MediaTrackConstraints)
-      } catch {
-        // Zoom not supported
-      }
-    }
   }
 
   if (miss)
@@ -585,29 +522,13 @@ function Scanner() {
         </div>
       ) : (
         <div className="space-y-4">
-          <div className="rounded-xl border border-border bg-white shadow-sm overflow-hidden relative">
+          <div className="rounded-xl border border-border bg-white shadow-sm overflow-hidden">
             <div id="reader" className="w-full aspect-video bg-black relative" style={{ minHeight: '300px' }} />
-            {started && (
-              <div className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black/80 to-transparent">
-                <div className="flex items-center justify-center gap-3 mb-2">
-                  <Button variant="ghost" size="icon" onClick={toggleTorch} className={torch ? 'bg-yellow-500 text-black' : ''} aria-label={torch ? 'Apagar flash' : 'Encender flash'}>
-                    <Zap className="h-5 w-5" />
-                  </Button>
-                  <Button variant="ghost" size="icon" onClick={() => changeZoom(-0.5)} disabled={zoom <= 1} aria-label="Alejar">
-                    <ZoomOut className="h-5 w-5" />
-                  </Button>
-                  <span className="text-white text-sm font-medium min-w-[40px] text-center">{Math.round(zoom * 100)}%</span>
-                  <Button variant="ghost" size="icon" onClick={() => changeZoom(0.5)} disabled={zoom >= 5} aria-label="Acercar">
-                    <ZoomIn className="h-5 w-5" />
-                  </Button>
-                </div>
-                <div className="flex justify-center">
-                  <Button variant="destructive" className="btn-lg" onClick={stop} style={{ minWidth: '160px' }}>
-                    <X className="h-5 w-5 mr-2" /> Cancelar
-                  </Button>
-                </div>
-              </div>
-            )}
+          </div>
+          <div className="flex justify-center p-4">
+            <Button variant="destructive" className="btn-lg" onClick={stop} style={{ minWidth: '160px' }}>
+              <X className="h-5 w-5 mr-2" /> Cancelar
+            </Button>
           </div>
           {error && <div className="rounded-xl border border-border bg-white shadow-sm p-4"><p className="text-center text-sm text-destructive">{error}</p></div>}
           {started && !error && (
