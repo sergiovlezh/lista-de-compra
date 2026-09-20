@@ -461,6 +461,8 @@ function Scanner() {
       }
       setStarted(false)
       setMiss({ barcode: code })
+      // Beep for ALL successful scans, including new products
+      playBeep()
     }
   }
 
