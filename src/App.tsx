@@ -403,23 +403,16 @@ function Scanner() {
   const [miss, setMiss] = useState<{ barcode: string } | null>(null)
   const [missName, setMissName] = useState('')
   const [missPrice, setMissPrice] = useState('')
-  const [permissionDenied, setPermissionDenied] = useState(false)
   const scannerRef = useRef<Html5Qrcode | null>(null)
   const scannedRef = useRef('')
-  const isMounted = useRef(true)
 
-  useEffect(() => {
-    isMounted.current = true
-    return () => {
-      isMounted.current = false
-      scannerRef.current?.stop().catch(() => {})
-      try { scannerRef.current?.clear() } catch {}
-    }
+  useEffect(() => () => {
+    scannerRef.current?.stop().catch(() => {})
+    try { scannerRef.current?.clear() } catch {}
   }, [])
 
   const start = async () => {
     setError('')
-    setPermissionDenied(false)
     try {
       const qr = new Html5Qrcode('reader', {
         formatsToSupport: [
@@ -435,7 +428,6 @@ function Scanner() {
         { facingMode: 'environment' },
         { fps: 10, qrbox: { width: 250, height: 250 } },
         (code) => {
-          if (!isMounted.current) return
           if (scannedRef.current === code) return
           scannedRef.current = code
           const known = useStore.getState().products[code]
@@ -446,19 +438,10 @@ function Scanner() {
             setMiss({ barcode: code })
           }
         },
-        () => {
-          // Silently ignore scan errors (no code found)
-        }
+        () => {},
       )
-    } catch (err) {
-      if (!isMounted.current) return
-      const errorMessage = err instanceof Error ? err.message : String(err)
-      if (errorMessage.includes('permission') || errorMessage.includes('denied') || errorMessage.includes('NotAllowedError')) {
-        setPermissionDenied(true)
-        setError('Permiso de cámara denegado. Actívalo en la configuración del navegador.')
-      } else {
-        setError('No se pudo acceder a la cámara. Verifica los permisos.')
-      }
+    } catch {
+      setError('Sin cámara. Revisa permisos o usa entrada manual.')
       setStarted(false)
     }
   }
@@ -509,14 +492,9 @@ function Scanner() {
               <h2 className="text-lg font-semibold text-text">Escanear código de barras</h2>
               <p className="text-text-muted mt-1">Apunta la cámara al código de barras del producto</p>
             </div>
-            <Button className="btn-primary btn-block btn-lg" onClick={start} disabled={permissionDenied}>
-              <Camera className="h-5 w-5 mr-2" /> {permissionDenied ? 'Permitir cámara en configuración' : 'Iniciar escáner'}
+            <Button className="btn-primary btn-block btn-lg" onClick={start}>
+              <Camera className="h-5 w-5 mr-2" /> Iniciar escáner
             </Button>
-            {permissionDenied && (
-              <p className="text-sm text-text-muted">
-                Ve a la configuración del navegador y permite el acceso a la cámara para este sitio.
-              </p>
-            )}
             {error && <p className="text-sm text-destructive">{error}</p>}
           </div>
         </div>
