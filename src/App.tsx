@@ -392,6 +392,43 @@ function Detail() {
   )
 }
 
+// Web Audio API beep - works reliably everywhere
+function playBeep() {
+  try {
+    const AudioContext = window.AudioContext || (window as any).webkitAudioContext
+    const ctx = new AudioContext()
+    
+    // Resume context if suspended (autoplay policy)
+    if (ctx.state === 'suspended') {
+      ctx.resume().then(() => {
+        playBeepInternal(ctx)
+      })
+      return
+    }
+    
+    playBeepInternal(ctx)
+  } catch (e) {
+    console.warn('Web Audio API failed, using fallback:', e)
+    // Fallback: simple beep via audio element
+    const audio = new Audio('data:audio/wav;base64,UklGRjIAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQYAAAD//w==')
+    audio.volume = 0.5
+    audio.play().catch((e) => console.warn('Audio fallback failed:', e))
+  }
+}
+
+function playBeepInternal(ctx: AudioContext) {
+  const osc = ctx.createOscillator()
+  const gain = ctx.createGain()
+  osc.type = 'sine'
+  osc.frequency.value = 800
+  gain.gain.value = 0.3
+  osc.connect(gain)
+  gain.connect(ctx.destination)
+  osc.start()
+  gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.1)
+  osc.stop(ctx.currentTime + 0.1)
+}
+
 function Scanner() {
   const { listId } = useParams<{ listId: string }>()
   if (!listId) return <Empty text="Lista no encontrada." />
@@ -411,6 +448,22 @@ function Scanner() {
     try { scannerRef.current?.clear() } catch {}
   }, [])
 
+  const handleScanSuccess = (code: string) => {
+    if (scannedRef.current === code) return
+    scannedRef.current = code
+    const known = useStore.getState().products[code]
+    if (known) {
+      playBeep()
+      addItem(listId, { barcode: code, name: known.name, price: known.price })
+      // Navigate immediately - cleanup effect will stop the scanner
+      setTimeout(() => {
+        navigate(`/lists/${listId}`)
+      }, 100)
+    } else {
+      setMiss({ barcode: code })
+    }
+  }
+
   const start = async () => {
     setError('')
     try {
@@ -427,17 +480,7 @@ function Scanner() {
       await qr.start(
         { facingMode: 'environment' },
         { fps: 10, qrbox: { width: 300, height: 300 } },
-        (code) => {
-          if (scannedRef.current === code) return
-          scannedRef.current = code
-          const known = useStore.getState().products[code]
-          if (known) {
-            addItem(listId, { barcode: code, name: known.name, price: known.price })
-            navigate(`/lists/${listId}`)
-          } else {
-            setMiss({ barcode: code })
-          }
-        },
+        handleScanSuccess,
         () => {},
       )
     } catch {
@@ -447,8 +490,12 @@ function Scanner() {
   }
 
   const stop = () => {
-    scannerRef.current?.stop().catch(() => {})
-    try { scannerRef.current?.clear() } catch {}
+    const scanner = scannerRef.current
+    if (scanner) {
+      scanner.stop().catch(() => {})
+      try { scanner.clear() } catch {}
+      scannerRef.current = null
+    }
     setStarted(false)
     navigate(`/lists/${listId}`)
   }
@@ -485,7 +532,16 @@ function Scanner() {
   return (
     <div className="space-y-4">
       <div className="space-y-4 max-w-md mx-auto">
-        <div id="reader" className="w-full aspect-video bg-black relative overflow-hidden rounded-xl border border-border" style={{ minHeight: '300px', maxHeight: '50vh' }} />
+        <div id="reader" className="w-full aspect-video bg-black relative overflow-hidden rounded-xl border border-border" style={{ minHeight: '300px', maxHeight: '50vh' }}>
+          {started && (
+            <>
+              <div className="scanner-overlay" />
+              <div className="scanner-cutout">
+                <div className="scanner-line" />
+              </div>
+            </>
+          )}
+        </div>
         {!started ? (
           <div className="rounded-xl border border-border bg-white shadow-sm">
             <div className="p-6 space-y-4 text-center">
@@ -510,7 +566,7 @@ function Scanner() {
             {error && <div className="rounded-xl border border-border bg-white shadow-sm p-4"><p className="text-center text-sm text-destructive">{error}</p></div>}
             {started && !error && (
               <div className="rounded-xl border border-border bg-white shadow-sm p-4">
-                <p className="text-center text-sm text-text-muted">Apunta al código. Productos conocidos: {Object.keys(products).length}</p>
+                <p className="text-center text-sm text-text-muted">Apunta el código dentro del marco. Productos: {Object.keys(products).length}</p>
               </div>
             )}
           </div>
