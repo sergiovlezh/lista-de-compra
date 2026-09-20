@@ -452,7 +452,14 @@ function Scanner() {
         navigate(`/lists/${listId}`)
       }, 100)
     } else {
-      // Don't stop() here - let the miss form show, cleanup effect will handle scanner
+      // Stop scanner before showing miss form to avoid conflicts
+      const scanner = scannerRef.current
+      if (scanner) {
+        scanner.stop().catch(() => {})
+        try { scanner.clear() } catch {}
+        scannerRef.current = null
+      }
+      setStarted(false)
       setMiss({ barcode: code })
     }
   }
@@ -520,7 +527,7 @@ function Scanner() {
               </div>
               <div className="flex gap-2">
                 <Button type="submit" className="btn-primary btn-block btn-lg">Guardar y agregar</Button>
-                <Button type="button" variant="outline" className="btn-block btn-lg" onClick={() => { setMiss(null); start() }}>Volver a escanear</Button>
+                <Button type="button" variant="outline" className="btn-block btn-lg" onClick={() => { setMiss(null); setTimeout(start, 50) }}>Volver a escanear</Button>
               </div>
             </form>
           </div>
