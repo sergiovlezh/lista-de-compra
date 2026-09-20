@@ -484,38 +484,38 @@ function Scanner() {
 
   return (
     <div className="space-y-4">
-      {!started ? (
-        <div className="rounded-xl border border-border bg-white shadow-sm">
-          <div className="p-6 space-y-4 text-center">
-            <Camera className="h-16 w-16 text-text-muted mx-auto" aria-hidden="true" />
-            <div>
-              <h2 className="text-lg font-semibold text-text">Escanear código de barras</h2>
-              <p className="text-text-muted mt-1">Apunta la cámara al código de barras del producto</p>
+      <div className="space-y-4">
+        <div id="reader" className="w-full aspect-video bg-black relative overflow-hidden rounded-xl border border-border" style={{ minHeight: '300px' }} />
+        {!started ? (
+          <div className="rounded-xl border border-border bg-white shadow-sm">
+            <div className="p-6 space-y-4 text-center">
+              <Camera className="h-16 w-16 text-text-muted mx-auto" aria-hidden="true" />
+              <div>
+                <h2 className="text-lg font-semibold text-text">Escanear código de barras</h2>
+                <p className="text-text-muted mt-1">Apunta la cámara al código de barras del producto</p>
+              </div>
+              <Button className="btn-primary btn-block btn-lg" onClick={start}>
+                <Camera className="h-5 w-5 mr-2" /> Iniciar escáner
+              </Button>
+              {error && <p className="text-sm text-destructive">{error}</p>}
             </div>
-            <Button className="btn-primary btn-block btn-lg" onClick={start}>
-              <Camera className="h-5 w-5 mr-2" /> Iniciar escáner
-            </Button>
-            {error && <p className="text-sm text-destructive">{error}</p>}
           </div>
-        </div>
-      ) : (
-        <div className="space-y-4">
-          <div className="rounded-xl border border-border bg-white shadow-sm overflow-hidden">
-            <div id="reader" className="w-full aspect-video bg-black relative" style={{ minHeight: '300px' }} />
-          </div>
-          <div className="flex justify-center p-4">
-            <Button variant="destructive" className="btn-lg" onClick={stop} style={{ minWidth: '160px' }}>
-              <X className="h-5 w-5 mr-2" /> Cancelar
-            </Button>
-          </div>
-          {error && <div className="rounded-xl border border-border bg-white shadow-sm p-4"><p className="text-center text-sm text-destructive">{error}</p></div>}
-          {started && !error && (
-            <div className="rounded-xl border border-border bg-white shadow-sm p-4">
-              <p className="text-center text-sm text-text-muted">Apunta al código. Productos conocidos: {Object.keys(products).length}</p>
+        ) : (
+          <div className="space-y-4">
+            <div className="flex justify-center p-4">
+              <Button variant="destructive" className="btn-lg" onClick={stop} style={{ minWidth: '160px' }}>
+                <X className="h-5 w-5 mr-2" /> Cancelar
+              </Button>
             </div>
-          )}
-        </div>
-      )}
+            {error && <div className="rounded-xl border border-border bg-white shadow-sm p-4"><p className="text-center text-sm text-destructive">{error}</p></div>}
+            {started && !error && (
+              <div className="rounded-xl border border-border bg-white shadow-sm p-4">
+                <p className="text-center text-sm text-text-muted">Apunta al código. Productos conocidos: {Object.keys(products).length}</p>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   )
 }
