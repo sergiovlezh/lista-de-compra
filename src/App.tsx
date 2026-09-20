@@ -460,6 +460,7 @@ function Scanner() {
         navigate(`/lists/${listId}`)
       }, 100)
     } else {
+      stop()
       setMiss({ barcode: code })
     }
   }
