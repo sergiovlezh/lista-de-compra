@@ -1,3 +1,5 @@
+export type ListState = 'preparing' | 'shopping' | 'reviewed'
+
 export interface Item {
   id: string
   barcode: string
@@ -14,6 +16,7 @@ export interface StoreList {
   note: string
   items: Item[]
   createdAt: number
+  state: ListState
 }
 
 // ponytail: product catalog = last-seen name/price per barcode, no separate entity file

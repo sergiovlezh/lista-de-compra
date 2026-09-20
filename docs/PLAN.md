@@ -10,82 +10,95 @@ This file is the source of truth. The Trello board mirrors it.
 
 Each phase ends with a runnable verify line. That line is the contract: pass it, ship the phase.
 
-### Phase 0 — Bootstrap
+### Phase 0 — Bootstrap ✅
 
 The first code that exists. Goal: confirm the toolchain works before any domain code.
 
-- [ ] `npm create vite@latest . -- --template react-ts` (run with the dir empty except git)
-- [ ] `npm i html5-qrcode zustand`
-- [ ] `npm i -D tailwindcss @tailwindcss/vite`
-- [ ] Add Tailwind v4 plugin to `vite.config.ts`
-- [ ] Replace generated CSS with `@import "tailwindcss";`
-- [ ] `npm run dev` → see Vite default page
+- [x] `npm create vite@latest . -- --template react-ts` (run with the dir empty except git)
+- [x] `npm i html5-qrcode zustand`
+- [x] `npm i -D tailwindcss @tailwindcss/vite`
+- [x] Add Tailwind v4 plugin to `vite.config.ts`
+- [x] Replace generated CSS with `@import "tailwindcss";`
+- [x] `npm run dev` → see Vite default page
 
 **Verify:** `npm run dev` boots without errors and renders the Vite page in the browser.
 
-### Phase 1 — Types + storage
+### Phase 1 — Types + storage ✅
 
 Lock the schema before any component reads or writes.
 
-- [ ] `src/types.ts` with `Product`, `Store`, `Item`, `StoreList`, `Basket`, `View`
-- [ ] `src/lib/storage.ts` — load/save to localStorage, version key, `migrate(state, version)`
-- [ ] `src/seed.ts` — empty array stub; user pastes items later
-- [ ] `src/main.tsx` imports from `types.ts` only, no UI changes
-- [ ] `npm run dev` still boots
+- [x] `src/types.ts` with `Item`, `StoreList`, `ProductMemory`, `View`, `ListState`
+- [x] `src/store.ts` with Zustand + persist middleware
+- [x] `npm run dev` still boots
+- [x] Type-check passes (`npm run build`)
 
 **Verify:** `npm run dev` boots without errors. Type-check passes (`npm run build`).
 
-### Phase 2 — Zustand + persistence wiring
+### Phase 2 — Zustand + persistence wiring ✅
 
 Prove persistence before building views on top.
 
-- [ ] `src/store.ts` with slices: products, stores, baskets, storeLists, view, currentIds
-- [ ] Wire `persist` middleware, single key `ldc:v1`
-- [ ] Actions: `upsertProduct`, `addItem`, `toggleItem`, `createStoreList`, `createBasket`, `setView`
-- [ ] `App.tsx` renders a `<pre>{JSON.stringify(state, null, 2)}</pre>` for sanity
-- [ ] Reload page → state survives
+- [x] `src/store.ts` with slices: lists, products, view
+- [x] Wire `persist` middleware, single key `ldc:v1`
+- [x] Actions: `createList`, `deleteList`, `updateList`, `addItem`, `toggleItem`, `removeItem`, `updateItemQty`, `rememberProduct`, `updateProduct`, `deleteProduct`, `importProducts`, `importLists`, `exportData`
+- [x] Reload page → state survives
 
 **Verify:** trigger each action via the dev console, reload, confirm state rehydrates from localStorage.
 
-### Phase 3 — Views
+### Phase 3 — Views ✅
 
-Single-page view switcher. No router.
+Single-page view switcher with React Router.
 
-- [ ] `src/App.tsx` switches on `view`, renders one of the views
-- [ ] `src/views/Baskets.tsx` — list of baskets + standalone store-lists
-- [ ] `src/views/BasketDetail.tsx` — its store-lists + totals + notes
-- [ ] `src/views/StoreListDetail.tsx` — items, add by barcode (manual input), toggle checked
-- [ ] `src/components/ItemRow.tsx`
-- [ ] `src/components/ProductForm.tsx`
-- [ ] Top nav with back button, calls `setView`
-- [ ] Click through: create basket → add list → add item → reload → still there
+- [x] `src/App.tsx` with React Router routes
+- [x] Lists view — create/list lists, filter by state/date
+- [x] Detail view — items with quantity controls, add form, scanner button at top
+- [x] Scanner view — camera auto-starts, cancel button
+- [x] Products view — list all products, create/edit/delete with modal form
+- [x] Settings view — import/export JSON/CSV
+- [x] Top nav with links to Lists, Products, Settings
 
-**Verify:** full manual flow works end-to-end, data survives reload.
+**Verify:** full manual flow works end-to-end, data survives reload, direct URLs work.
 
-### Phase 4 — Scanner
+### Phase 4 — Scanner ✅
 
 Html5-QRCode. Camera must start from a user click (iOS gesture rule).
 
-- [ ] `src/views/Scanner.tsx` with Html5-QRCode, camera start on user click
-- [ ] On scan → `upsertProduct({barcode, storeId})` + open `ProductForm` on miss
-- [ ] On hit with price drift → confirm "update price?" prompt
-- [ ] Add item to current store-list (if set), else prompt "add to which list?"
-- [ ] Unsupported browser → friendly fallback message
-- [ ] Scan a real barcode, item lands in list
+- [x] Scanner view with Html5-QRCode, camera starts on scan button click
+- [x] On scan → match product, add to list (with deduplication)
+- [x] On miss → form to enter name/price, then add
+- [x] Price drift → confirm "update price?" prompt
+- [x] Unsupported browser → friendly fallback message
+- [x] Scan a real barcode, item lands in list
 
 **Verify:** scan a product barcode with a phone, item appears in the list and survives reload.
 
-### Phase 5 — Polish
+### Phase 5 — Polish ✅
 
-- [ ] Empty states (no lists, no products)
-- [ ] Edit/delete product
-- [ ] Confirm-delete dialogs
-- [ ] Date picker uses native `<input type="date">`
-- [ ] Total per list and per basket
-- [ ] Notes field on basket/list
-- [ ] Deploy: push to GitHub Pages or similar (skip until asked)
+- [x] Empty states (no lists, no products)
+- [x] Edit/delete product with full modal form
+- [x] Confirm-delete dialogs (modal for items, native confirm for lists)
+- [x] Date picker uses native `<input type="date">`
+- [x] Total per list and per item (price × qty)
+- [x] Notes field on list
+- [x] Deploy: Vercel with SPA rewrite
 
-**Verify:** empty states render, totals add up, native date picker works on mobile.
+**Verify:** empty states render, totals add up, native date picker works on mobile, Vercel deploy works.
+
+### Phase 6 — Enhanced UX ✅
+
+- [x] **shadcn/ui** component library for consistent, accessible UI
+- [x] **List states**: Preparando / Comprando / Revisado with badge colors
+- [x] **Filter lists** by state and date
+- [x] **Lists view**: new list form on top, lists sorted by date descending
+- [x] **Detail view**: scanner button and add form at top, item totals column
+- [x] **Quantity controls**: inline +/- buttons, removing last item shows modal
+- [x] **Remove item**: trashcan icon, modal confirmation
+- [x] **Camera auto-start**: scan button opens camera immediately
+- [x] **Cancel scan**: button to return to list
+- [x] **Product form**: modal with all fields, barcode scanner, create/edit redirect to products list
+- [x] **Import/Export** moved to Settings page
+
+**Verify:** all features work, build passes, deployed to Vercel main.
 
 ---
 
@@ -97,7 +110,7 @@ Each becomes its own phase when needed.
 - Multi-user + sync
 - PWA install / offline indicator
 - Categories / sections
-- Export / import JSON
+- Baskets ("compra de mercado" grouping) — lists stand alone for now
 
 ---
 
@@ -113,7 +126,8 @@ Each becomes its own phase when needed.
 5. Phase 3 — Views
 6. Phase 4 — Scanner
 7. Phase 5 — Polish
-8. Done
+8. Phase 6 — Enhanced UX
+9. Done
 
 **Cards** = one per checklist `[ ]` above. Naming: `[P0] Vite scaffold`, `[P1] types.ts`, …
 

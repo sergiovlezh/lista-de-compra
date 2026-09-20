@@ -11,9 +11,16 @@ A shopping list tracker for one person, in the browser. Create lists per store, 
 ## Features
 
 - **Multiple lists per store** — each list belongs to a store because barcodes and prices can differ.
-- **Baskets** — group several store-lists into one shopping trip. Baskets are optional; lists can stand alone.
-- **Barcode scanning** — point your phone at a product, the app matches it to your stored products and adds it to the current list.
+- **List states** — track lists as *Preparando* (at home), *Comprando* (at store), or *Revisado* (done).
+- **Filter lists** — filter by state and date to find past shopping trips.
+- **Product catalog** — view all saved products, edit name/price/barcode, scan new barcodes.
+- **Smart deduplication** — adding the same product (by barcode or exact name) increments quantity instead of creating duplicates.
+- **Quantity controls** — increment/decrement item quantity inline; removing last item shows confirmation modal.
+- **Item totals** — see unit price × quantity for each line item.
+- **Barcode scanning** — point your phone at a product, the app matches it to your stored products and adds it to the current list. Camera starts immediately on scan button click.
 - **Price history** — each product carries an `updatedAt`. When you scan and the price has changed, the app asks you whether to update.
+- **Import/Export** — import products or lists from JSON/CSV, export products only or everything (products + lists) as JSON/CSV.
+- **Direct URLs** — React Router enables deep linking to specific lists, products, or settings.
 - **Offline by design** — everything lives in your browser's `localStorage`. No account, no server, no sync (yet).
 
 ---
@@ -22,8 +29,10 @@ A shopping list tracker for one person, in the browser. Create lists per store, 
 
 - **Vite + React + TypeScript** — fast scaffold, type safety
 - **Tailwind CSS v4** — via the official Vite plugin, no config file
+- **shadcn/ui** — accessible, customizable components (Radix UI + Tailwind)
 - **Zustand** — single store with localStorage persistence
 - **html5-qrcode** — barcode/QR scanning that works on iOS Safari too
+- **React Router v6** — client-side routing for direct URL access
 
 Decisions and tradeoffs are recorded in [`docs/DECISIONS.md`](docs/DECISIONS.md).
 
@@ -38,8 +47,6 @@ npm run dev
 
 Open the URL Vite shows (usually `http://localhost:5173`).
 
-> Phase 0 is not done yet. These commands will work after Phase 0 lands — see [`docs/PLAN.md`](docs/PLAN.md).
-
 ---
 
 ## Documentation
@@ -52,6 +59,6 @@ Open the URL Vite shows (usually `http://localhost:5173`).
 
 ## Status
 
-MVP. Lists per store, manual + camera barcode entry, price memory with drift prompt, totals, notes, localStorage persistence. Run `npm run dev`.
+**Phase 6 complete.** Lists with states, filtering, product catalog with full CRUD, smart deduplication, inline quantity controls with modal confirmation, item totals, camera auto-start on scan, import/export in settings, React Router for deep linking. Deployed to Vercel. Run `npm run dev`.
 
-> Baskets ("compra de mercado" grouping) not yet — lists stand alone. See [`docs/PLAN.md`](docs/PLAN.md) Phase 5.
+> Baskets ("compra de mercado" grouping) deferred — lists stand alone. See [`docs/PLAN.md`](docs/PLAN.md) Phase 5.

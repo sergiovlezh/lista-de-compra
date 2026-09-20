@@ -10,7 +10,7 @@ export interface State {
   setView: (view: View) => void
   createList: (store: string, date: string) => string
   deleteList: (id: string) => void
-  updateList: (id: string, patch: Partial<Pick<StoreList, 'store' | 'date' | 'note'>>) => void
+  updateList: (id: string, patch: Partial<Pick<StoreList, 'store' | 'date' | 'note' | 'state'>>) => void
   addItem: (listId: string, item: Omit<Item, 'id' | 'checked'>) => void
   updateItemQty: (listId: string, itemId: string, qty: number) => void
   toggleItem: (listId: string, itemId: string) => void
@@ -39,7 +39,7 @@ export const useStore = create<State>()(
         set((s) => ({
           lists: [
             ...s.lists,
-            { id, store, date, note: '', items: [], createdAt: Date.now() },
+            { id, store, date, note: '', items: [], createdAt: Date.now(), state: 'preparing' },
           ],
           view: { name: 'detail', listId: id },
         }))

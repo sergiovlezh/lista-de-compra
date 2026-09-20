@@ -2,13 +2,32 @@ import { useEffect, useRef, useState } from 'react'
 import { BrowserRouter, Routes, Route, Link, useNavigate, useParams, useLocation, Outlet } from 'react-router-dom'
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode'
 import { listTotal, useStore, type State } from './store'
-import type { ProductMemory, Item, StoreList } from './types'
+import type { ProductMemory, Item, StoreList, ListState } from './types'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
+import { Label } from '@/components/ui/label'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Separator } from '@/components/ui/separator'
+import { Badge } from '@/components/ui/badge'
+import { Trash2, Camera, Plus, Minus, X, RotateCcw, ArrowLeft } from 'lucide-react'
+import { cn } from '@/lib/utils'
 
-const input = 'w-full rounded border border-gray-300 px-2 py-1.5 text-sm'
-const btn = 'rounded px-3 py-1.5 text-sm font-medium'
-const primary = `${btn} bg-gray-900 text-white`
-const ghost = `${btn} border border-gray-300`
-const danger = `${btn} bg-red-600 text-white`
+const primary = 'bg-gray-900 text-white'
+const ghost = 'border border-gray-300'
+
+const stateLabels: Record<ListState, string> = {
+  preparing: 'Preparando',
+  shopping: 'Comprando',
+  reviewed: 'Revisado',
+}
+const stateColors: Record<ListState, 'default' | 'secondary' | 'success' | 'warning' | 'destructive'> = {
+  preparing: 'default',
+  shopping: 'secondary',
+  reviewed: 'success',
+}
 
 export default function App() {
   return (
@@ -34,7 +53,7 @@ function Layout() {
   const isSettings = location.pathname === '/settings'
 
   return (
-    <main className="mx-auto max-w-xl min-h-screen p-4">
+    <main className="mx-auto max-w-3xl min-h-screen p-4">
       <header className="mb-4 flex items-center justify-between">
         <h1 className="text-xl font-semibold">lista-de-compra</h1>
         <nav className="flex gap-2">
@@ -58,62 +77,107 @@ function Layout() {
 function Lists() {
   const lists = useStore((s: State) => s.lists)
   const createList = useStore((s: State) => s.createList)
+  const updateList = useStore((s: State) => s.updateList)
+  const deleteList = useStore((s: State) => s.deleteList)
   const [store, setStore] = useState('')
+  const [filterState, setFilterStateRaw] = useState<'preparing' | 'shopping' | 'reviewed' | 'all'>('all')
+  const setFilterState = (value: string) => {
+    setFilterStateRaw(value as 'preparing' | 'shopping' | 'reviewed' | 'all')
+  }
+  const [filterDate, setFilterDate] = useState('')
   const today = new Date().toISOString().slice(0, 10)
   const [date, setDate] = useState(today)
 
-  if (!lists.length)
-    return (
-      <div>
-        <Empty text="Sin listas todavía. Crea la primera abajo." />
-        <NewList store={store} setStore={setStore} date={date} setDate={setDate} createList={createList} />
-      </div>
-    )
+  const filteredLists = lists
+    .filter((l) => {
+      if (filterState !== 'all' && l.state !== filterState) return false
+      if (filterDate && l.date !== filterDate) return false
+      return true
+    })
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
 
   return (
-    <div className="space-y-3">
-      {lists.map((l) => (
-        <Link key={l.id} to={`/lists/${l.id}`} className="w-full rounded border p-3 text-left block">
-          <div className="font-medium">{l.store || 'Sin tienda'}</div>
-          <div className="text-sm text-gray-500">
-            {l.date} · {l.items.filter((i) => i.checked).length}/{l.items.length}{' '}
-            · ${listTotal(l).toFixed(2)}
+    <div className="space-y-4">
+      <section className="rounded border p-4 space-y-3">
+        <h2 className="font-medium">Nueva lista</h2>
+        <form
+          className="flex gap-2 flex-wrap"
+          onSubmit={(e) => {
+            e.preventDefault()
+            createList(store.trim() || 'Sin tienda', date)
+            setStore('')
+            setDate(today)
+          }}
+        >
+          <Input placeholder="Tienda" value={store} onChange={(e) => setStore(e.target.value)} className="flex-1 min-w-[200px]" />
+          <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-40" />
+          <Button type="submit">+ Crear</Button>
+        </form>
+      </section>
+
+      <section className="space-y-3">
+        <div className="flex gap-2 flex-wrap items-center">
+          <Label htmlFor="filter-state" className="text-sm">Estado:</Label>
+          <Select value={filterState} onValueChange={setFilterState}>
+            <SelectTrigger id="filter-state" className="w-[180px]">
+              <SelectValue placeholder="Todos" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos</SelectItem>
+              <SelectItem value="preparing">Preparando</SelectItem>
+              <SelectItem value="shopping">Comprando</SelectItem>
+              <SelectItem value="reviewed">Revisado</SelectItem>
+            </SelectContent>
+          </Select>
+          <Label htmlFor="filter-date" className="text-sm">Fecha:</Label>
+          <Input id="filter-date" type="date" value={filterDate} onChange={(e) => setFilterDate(e.target.value)} className="w-40" />
+          {(filterState !== 'all' || filterDate) && (
+            <Button variant="ghost" size="sm" onClick={() => { setFilterState('all'); setFilterDate('') }}>
+              <X className="h-4 w-4 mr-1" /> Limpiar
+            </Button>
+          )}
+        </div>
+
+        {filteredLists.length === 0 ? (
+          <div className="rounded border border-dashed p-6 text-center text-gray-500">
+            {lists.length === 0 ? 'Sin listas todavía. Crea la primera arriba.' : 'No hay listas que coincidan con los filtros.'}
           </div>
-        </Link>
-      ))}
-      <NewList store={store} setStore={setStore} date={date} setDate={setDate} createList={createList} />
+        ) : (
+          <ul className="divide-y rounded border">
+            {filteredLists.map((l) => (
+              <li key={l.id} className="p-3">
+                <Link to={`/lists/${l.id}`} className="flex items-center justify-between gap-2">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium truncate">{l.store || 'Sin tienda'}</span>
+                      <Badge variant={stateColors[l.state]}>{stateLabels[l.state]}</Badge>
+                    </div>
+                    <div className="text-sm text-gray-500">
+                      {l.date} · {l.items.filter((i) => i.checked).length}/{l.items.length} · ${listTotal(l).toFixed(2)}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Button variant="ghost" size="icon" onClick={(e) => {
+                      e.preventDefault()
+                      const newState: ListState = l.state === 'preparing' ? 'shopping' : l.state === 'shopping' ? 'reviewed' : 'preparing'
+                      updateList(l.id, { state: newState })
+                    }}>
+                      <RotateCcw className="h-4 w-4" />
+                    </Button>
+                    <Button variant="ghost" size="icon" onClick={(e) => {
+                      e.preventDefault()
+                      if (confirm('¿Eliminar esta lista?')) deleteList(l.id)
+                    }}>
+                      <Trash2 className="h-4 w-4 text-red-600" />
+                    </Button>
+                  </div>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
     </div>
-  )
-}
-
-function NewList({
-  store,
-  setStore,
-  date,
-  setDate,
-  createList,
-}: {
-  store: string
-  setStore: (v: string) => void
-  date: string
-  setDate: (v: string) => void
-  createList: (store: string, date: string) => void
-}) {
-  const navigate = useNavigate()
-  return (
-    <form
-      className="flex gap-2"
-      onSubmit={(e) => {
-        e.preventDefault()
-        const id = createList(store.trim() || 'Sin tienda', date)
-        setStore('')
-        navigate(`/lists/${id}`)
-      }}
-    >
-      <input className={input} placeholder="Tienda" value={store} onChange={(e) => setStore(e.target.value)} />
-      <input className={input} type="date" value={date} onChange={(e) => setDate(e.target.value)} />
-      <button className={primary} type="submit">+</button>
-    </form>
   )
 }
 
@@ -132,6 +196,8 @@ function Detail() {
   const [name, setName] = useState('')
   const [price, setPrice] = useState('')
   const [qty, setQty] = useState(1)
+  const [deleteConfirmItemId, setDeleteConfirmItemId] = useState<string | null>(null)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const productNames = Object.values(products).map((p: ProductMemory) => p.name).filter(Boolean)
 
   if (!list) return <Empty text="Lista no encontrada." />
@@ -167,46 +233,121 @@ function Detail() {
     }
   }
 
+  const handleQtyChange = (itemId: string, newQty: number) => {
+    if (newQty < 1) {
+      setDeleteConfirmItemId(itemId)
+      setShowDeleteConfirm(true)
+    } else {
+      updateItemQty(listId!, itemId, newQty)
+    }
+  }
+
+  const confirmDelete = () => {
+    if (deleteConfirmItemId) {
+      removeItem(listId!, deleteConfirmItemId)
+    }
+    setShowDeleteConfirm(false)
+    setDeleteConfirmItemId(null)
+  }
+
   return (
-    <div className="space-y-3">
-      <div className="flex gap-2">
-        <input className={input} value={list.store} onChange={(e) => updateList(listId!, { store: e.target.value })} placeholder="Tienda" />
-        <input className={input} type="date" value={list.date} onChange={(e) => updateList(listId!, { date: e.target.value })} />
+    <div className="space-y-4">
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex gap-2 flex-1">
+          <Input value={list.store} onChange={(e) => updateList(listId!, { store: e.target.value })} placeholder="Tienda" className="flex-1" />
+          <Input type="date" value={list.date} onChange={(e) => updateList(listId!, { date: e.target.value })} className="w-40" />
+          <Select value={list.state} onValueChange={(v) => updateList(listId!, { state: v as ListState })}>
+            <SelectTrigger className="w-36">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="preparing">Preparando</SelectItem>
+              <SelectItem value="shopping">Comprando</SelectItem>
+              <SelectItem value="reviewed">Revisado</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <Button variant="ghost" size="icon" onClick={() => navigate('/')}>
+          <ArrowLeft className="h-4 w-4" />
+        </Button>
       </div>
 
-      {list.items.length === 0 && <Empty text="Lista vacía. Agrega abajo o escanea." />}
-      <ul className="divide-y rounded border">
-        {list.items.map((i: Item) => (
-          <li key={i.id} className="flex items-center gap-2 p-2">
-            <input type="checkbox" className="h-5 w-5" checked={i.checked} onChange={() => toggleItem(listId!, i.id)} />
-            <div className="flex-1 min-w-0">
-              <div className={i.checked ? 'line-through text-gray-400' : ''}>{i.name}</div>
-              <div className="text-xs text-gray-500">{i.barcode} · ${i.price.toFixed(2)}</div>
-            </div>
-            <div className="flex items-center gap-1">
-              <button className="w-8 h-8 rounded border text-sm" onClick={() => updateItemQty(listId!, i.id, i.qty - 1)}>−</button>
-              <span className="w-10 text-center">{i.qty}</span>
-              <button className="w-8 h-8 rounded border text-sm" onClick={() => updateItemQty(listId!, i.id, i.qty + 1)}>+</button>
-            </div>
-            <button className="text-sm text-red-600" onClick={() => { if (confirm(`¿Quitar "${i.name}"?`)) removeItem(listId!, i.id) }}>✕</button>
-          </li>
-        ))}
-      </ul>
+      <div className="space-y-3">
+        <form className="flex gap-2 flex-wrap" onSubmit={submit}>
+          <Input placeholder="Código" value={barcode} onChange={(e) => setBarcode(e.target.value)} className="flex-1 min-w-[120px]" />
+          <Autocomplete value={name} onChange={setName} options={productNames} placeholder="Nombre" onSelect={onNameSelect} className="flex-1 min-w-[150px]" />
+          <Input placeholder="$" inputMode="decimal" value={price} onChange={(e) => setPrice(e.target.value)} className="w-24" />
+          <Input type="number" min="1" max="99" value={qty} onChange={(e) => setQty(parseInt(e.target.value) || 1)} className="w-20" />
+          <Button type="submit">+</Button>
+        </form>
 
-      <div className="text-right font-semibold">Total: ${listTotal(list).toFixed(2)}</div>
+        <Button className="w-full" onClick={() => navigate(`/lists/${listId}/scanner`)}>
+          <Camera className="h-4 w-4 mr-2" /> Escanear
+        </Button>
+      </div>
 
-      <form className="flex gap-2 flex-wrap" onSubmit={submit}>
-        <input className={input} placeholder="Código" value={barcode} onChange={(e) => setBarcode(e.target.value)} />
-        <Autocomplete value={name} onChange={setName} options={productNames} placeholder="Nombre" onSelect={onNameSelect} />
-        <input className={input} placeholder="$" inputMode="decimal" value={price} onChange={(e) => setPrice(e.target.value)} />
-        <input className={input} type="number" min="1" max="99" value={qty} onChange={(e) => setQty(parseInt(e.target.value) || 1)} style={{ width: '70px' }} />
-        <button className={primary} type="submit">+</button>
-      </form>
+      <Separator />
 
-      <button className={`${primary} w-full py-2`} onClick={() => navigate(`/lists/${listId}/scanner`)}>📷 Escanear</button>
+      {list.items.length === 0 ? (
+        <div className="rounded border border-dashed p-6 text-center text-gray-500">Lista vacía. Agrega items arriba o escanea.</div>
+      ) : (
+        <div className="rounded border overflow-hidden">
+          <div className="grid grid-cols-[1fr_60px_80px_80px_100px_40px] gap-2 px-3 py-2 text-xs font-medium text-gray-500 border-b bg-gray-50">
+            <div>Producto</div>
+            <div className="text-center">Cantidad</div>
+            <div className="text-right pr-2">Precio</div>
+            <div className="text-right pr-2">Total</div>
+            <div></div>
+            <div></div>
+          </div>
+          <ul className="divide-y max-h-[50vh] overflow-auto">
+            {list.items.map((i: Item) => (
+              <li key={i.id} className="grid grid-cols-[1fr_60px_80px_80px_100px_40px] gap-2 px-3 py-2 items-center">
+                <div className="min-w-0">
+                  <div className={cn(i.checked ? 'line-through text-gray-400' : '')}>{i.name}</div>
+                  <div className="text-xs text-gray-500">{i.barcode}</div>
+                </div>
+                <div className="flex items-center justify-center gap-1">
+                  <Button variant="ghost" size="icon" onClick={() => handleQtyChange(i.id, i.qty - 1)} disabled={i.qty <= 1}>
+                    <Minus className="h-4 w-4" />
+                  </Button>
+                  <span className="w-10 text-center">{i.qty}</span>
+                  <Button variant="ghost" size="icon" onClick={() => handleQtyChange(i.id, i.qty + 1)}>
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </div>
+                <div className="text-right pr-2 text-sm">${i.price.toFixed(2)}</div>
+                <div className="text-right pr-2 text-sm font-medium">${(i.price * i.qty).toFixed(2)}</div>
+                <Checkbox checked={i.checked} onCheckedChange={() => toggleItem(listId!, i.id)} />
+                <Button variant="ghost" size="icon" onClick={() => { setDeleteConfirmItemId(i.id); setShowDeleteConfirm(true) }}>
+                  <Trash2 className="h-4 w-4 text-red-600" />
+                </Button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
-      <textarea className={input} rows={2} placeholder="Notas" value={list.note} onChange={(e) => updateList(listId!, { note: e.target.value })} />
-      <button className="text-sm text-red-600" onClick={() => { if (confirm('¿Eliminar esta lista?')) { deleteList(listId!); navigate('/') } }}>Eliminar lista</button>
+      <div className="text-right font-semibold text-lg">Total: ${listTotal(list).toFixed(2)}</div>
+
+      <Textarea rows={2} placeholder="Notas" value={list.note} onChange={(e) => updateList(listId!, { note: e.target.value })} />
+
+      <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>¿Eliminar item?</DialogTitle>
+            <DialogDescription>Esta acción no se puede deshacer.</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowDeleteConfirm(false)}>Cancelar</Button>
+            <Button variant="destructive" onClick={confirmDelete}>Eliminar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Button variant="outline" onClick={() => { if (confirm('¿Eliminar esta lista?')) { deleteList(listId!); navigate('/') } }} className="w-full">
+        <Trash2 className="h-4 w-4 mr-2" /> Eliminar lista
+      </Button>
     </div>
   )
 }
@@ -265,26 +406,56 @@ function Scanner() {
     }
   }
 
+  const stop = () => {
+    scannerRef.current?.stop().catch(() => {})
+    try { scannerRef.current?.clear() } catch {}
+    setStarted(false)
+    navigate(`/lists/${listId}`)
+  }
+
   if (miss)
     return (
-      <form className="space-y-2" onSubmit={(e) => {
-        e.preventDefault()
-        addItem(listId, { barcode: miss.barcode, name: missName.trim() || miss.barcode, price: parseFloat(missPrice) || 0, qty: 1 })
-        navigate(`/lists/${listId}`)
-      }}>
-        <p className="text-sm">Código nuevo: {miss.barcode}</p>
-        <input className={input} placeholder="Nombre" value={missName} onChange={(e) => setMissName(e.target.value)} autoFocus />
-        <input className={input} placeholder="Precio" inputMode="decimal" value={missPrice} onChange={(e) => setMissPrice(e.target.value)} />
-        <button className={`${primary} w-full py-2`} type="submit">Guardar y agregar</button>
-      </form>
+      <div className="space-y-4 p-4">
+        <h2 className="text-lg font-semibold">Código nuevo: {miss.barcode}</h2>
+        <form className="space-y-3" onSubmit={(e) => {
+          e.preventDefault()
+          addItem(listId, { barcode: miss.barcode, name: missName.trim() || miss.barcode, price: parseFloat(missPrice) || 0, qty: 1 })
+          navigate(`/lists/${listId}`)
+        }}>
+          <div>
+            <Label>Nombre</Label>
+            <Input placeholder="Nombre" value={missName} onChange={(e) => setMissName(e.target.value)} autoFocus required />
+          </div>
+          <div>
+            <Label>Precio</Label>
+            <Input placeholder="0.00" inputMode="decimal" value={missPrice} onChange={(e) => setMissPrice(e.target.value)} />
+          </div>
+          <div className="flex gap-2">
+            <Button type="submit">Guardar y agregar</Button>
+            <Button type="button" variant="outline" onClick={() => { setMiss(null); start() }}>Volver a escanear</Button>
+          </div>
+        </form>
+      </div>
     )
 
   return (
-    <div className="space-y-2">
-      <div id="reader" className="overflow-hidden rounded border" />
-      {!started && <button className={`${primary} w-full py-2`} onClick={start}>Iniciar cámara</button>}
-      {error && <p className="text-sm text-red-600">{error}</p>}
-      {started && <p className="text-sm text-gray-500">Apunta al código. Conocidos: {Object.keys(products).length}</p>}
+    <div className="space-y-4">
+      {!started ? (
+        <Button className="w-full" onClick={start} size="lg">
+          <Camera className="h-4 w-4 mr-2" /> Iniciar escáner
+        </Button>
+      ) : (
+        <>
+          <div id="reader" className="rounded border overflow-hidden bg-black aspect-video" />
+          <div className="flex items-center justify-center gap-4 p-4">
+            <Button variant="destructive" onClick={stop}>
+              <X className="h-4 w-4 mr-2" /> Cancelar
+            </Button>
+          </div>
+          {error && <p className="text-center text-sm text-red-600">{error}</p>}
+          {started && <p className="text-center text-sm text-gray-500">Apunta al código. Conocidos: {Object.keys(products).length}</p>}
+        </>
+      )}
     </div>
   )
 }
@@ -298,16 +469,18 @@ function Products() {
   return (
     <div className="space-y-4">
       {productEntries.length === 0 ? (
-        <Empty text="Sin productos guardados. Agregue items a listas o cree uno nuevo." />
+        <div className="rounded border border-dashed p-6 text-center text-gray-500">Sin productos guardados. Agregue items a listas o cree uno nuevo.</div>
       ) : (
         <ul className="divide-y rounded border">
           {productEntries.map(([barcode, p]: [string, ProductMemory]) => (
-            <li key={barcode} className="flex items-center gap-2 p-2">
+            <li key={barcode} className="flex items-center justify-between gap-2 p-3">
               <Link to={`/products/${barcode}`} className="flex-1 min-w-0">
                 <div className="font-medium truncate">{p.name}</div>
                 <div className="text-xs text-gray-500">{barcode} · ${p.price.toFixed(2)} · {new Date(p.updatedAt).toLocaleString()}</div>
               </Link>
-              <button className={danger} onClick={() => { if (confirm('¿Eliminar producto?')) deleteProduct(barcode) }}>Eliminar</button>
+              <Button variant="ghost" size="icon" onClick={() => { if (confirm('¿Eliminar producto?')) deleteProduct(barcode) }}>
+                <Trash2 className="h-4 w-4 text-red-600" />
+              </Button>
             </li>
           ))}
         </ul>
@@ -378,9 +551,9 @@ function ProductForm() {
       await qr.start(
         { facingMode: 'environment' },
         { fps: 10, qrbox: { width: 250, height: 250 } },
-        (code) => {
-          setCode(code)
-          const known = useStore.getState().products[code]
+        (scannedCode) => {
+          setCode(scannedCode)
+          const known = useStore.getState().products[scannedCode]
           if (known) {
             setName(known.name)
             setPrice(known.price.toString())
@@ -407,33 +580,33 @@ function ProductForm() {
     <div className="space-y-4">
       <h2 className="text-lg font-semibold">{isNew ? 'Nuevo producto' : 'Editar producto'}</h2>
 
-      <form className="space-y-3" onSubmit={handleSave}>
-        <div>
-          <label className="block text-sm mb-1">Código de barras</label>
+      <form className="space-y-4" onSubmit={handleSave}>
+        <div className="space-y-2">
+          <Label>Código de barras</Label>
           <div className="flex gap-2">
-            <input className={input} placeholder="Código" value={code} onChange={(e) => setCode(e.target.value)} disabled={scanning} />
-            <button type="button" className={scanning ? danger : ghost} onClick={scanning ? stopScan : startScan}>
-              {scanning ? '✕ Cancelar' : '📷 Escanear'}
-            </button>
+            <Input placeholder="Código" value={code} onChange={(e) => setCode(e.target.value)} disabled={scanning} className="flex-1" />
+            <Button type="button" variant={scanning ? 'destructive' : 'outline'} onClick={scanning ? stopScan : startScan}>
+              {scanning ? '✕ Cancelar' : <><Camera className="h-4 w-4 mr-1" /> Escanear</>}
+            </Button>
           </div>
-          {scanError && <p className="text-sm text-red-600 mt-1">{scanError}</p>}
-          {scanning && <div id="product-scanner" className="mt-2 rounded border overflow-hidden" />}
+          {scanError && <p className="text-sm text-red-600">{scanError}</p>}
+          {scanning && <div id="product-scanner" className="rounded border overflow-hidden bg-black aspect-video" />}
         </div>
 
-        <div>
-          <label className="block text-sm mb-1">Nombre *</label>
-          <input className={input} placeholder="Nombre del producto" value={name} onChange={(e) => setName(e.target.value)} required autoFocus />
+        <div className="space-y-2">
+          <Label>Nombre *</Label>
+          <Input placeholder="Nombre del producto" value={name} onChange={(e) => setName(e.target.value)} required autoFocus />
         </div>
 
-        <div>
-          <label className="block text-sm mb-1">Precio</label>
-          <input className={input} placeholder="0.00" inputMode="decimal" value={price} onChange={(e) => setPrice(e.target.value)} />
+        <div className="space-y-2">
+          <Label>Precio</Label>
+          <Input placeholder="0.00" inputMode="decimal" value={price} onChange={(e) => setPrice(e.target.value)} />
         </div>
 
         <div className="flex gap-2">
-          <button className={primary} type="submit">{isNew ? 'Crear' : 'Guardar'}</button>
-          {!isNew && <button type="button" className={danger} onClick={handleDelete}>Eliminar</button>}
-          <button type="button" className={ghost} onClick={() => navigate('/products')}>Cancelar</button>
+          <Button type="submit">{isNew ? 'Crear' : 'Guardar'}</Button>
+          {!isNew && <Button type="button" variant="destructive" onClick={handleDelete}>Eliminar</Button>}
+          <Button type="button" variant="outline" onClick={() => navigate('/products')}>Cancelar</Button>
         </div>
       </form>
     </div>
@@ -517,15 +690,15 @@ function Settings() {
       <section className="space-y-3 rounded border p-4">
         <h3 className="font-medium">Importar / Exportar</h3>
         <div className="flex gap-2 flex-wrap text-sm">
-          <label className="flex items-center gap-2"><input type="radio" name="importMode" checked={importMode === 'products'} onChange={() => setImportMode('products')} /> Productos</label>
-          <label className="flex items-center gap-2"><input type="radio" name="importMode" checked={importMode === 'lists'} onChange={() => setImportMode('lists')} /> Listas</label>
-          <label className="flex items-center gap-2"><input type="checkbox" checked={mergeMode} onChange={(e) => setMergeMode(e.target.checked)} /> Fusionar</label>
+          <Label className="flex items-center gap-2"><input type="radio" name="importMode" checked={importMode === 'products'} onChange={() => setImportMode('products')} /> Productos</Label>
+          <Label className="flex items-center gap-2"><input type="radio" name="importMode" checked={importMode === 'lists'} onChange={() => setImportMode('lists')} /> Listas</Label>
+          <Label className="flex items-center gap-2"><input type="checkbox" checked={mergeMode} onChange={(e) => setMergeMode(e.target.checked)} /> Fusionar</Label>
         </div>
-        <input type="file" accept=".json,.csv" onChange={handleImport} className="text-sm" />
+        <Input type="file" accept=".json,.csv" onChange={handleImport} />
         <div className="flex gap-2 flex-wrap">
-          <button className={ghost} onClick={() => handleExport(false)}>Exportar productos (JSON)</button>
-          <button className={ghost} onClick={() => handleExport(true)}>Exportar todo (JSON)</button>
-          <button className={ghost} onClick={handleExportCSV}>Exportar productos (CSV)</button>
+          <Button variant="outline" onClick={() => handleExport(false)}>Exportar productos (JSON)</Button>
+          <Button variant="outline" onClick={() => handleExport(true)}>Exportar todo (JSON)</Button>
+          <Button variant="outline" onClick={handleExportCSV}>Exportar productos (CSV)</Button>
         </div>
       </section>
 
@@ -544,12 +717,14 @@ function Autocomplete({
   options,
   placeholder,
   onSelect,
+  className,
 }: {
   value: string
   onChange: (v: string) => void
   options: string[]
   placeholder: string
   onSelect?: (v: string) => void
+  className?: string
 }) {
   const [open, setOpen] = useState(false)
   const [highlighted, setHighlighted] = useState(0)
@@ -576,12 +751,19 @@ function Autocomplete({
   }
 
   return (
-    <div className="relative" onClick={() => setOpen(true)}>
-      <input ref={inputRef} className={input} placeholder={placeholder} value={value} onChange={(e) => { onChange(e.target.value); setOpen(true); setHighlighted(0) }} onKeyDown={handleKeyDown} autoComplete="off" />
+    <div className={cn('relative', className)} onClick={() => setOpen(true)}>
+      <Input
+        ref={inputRef}
+        placeholder={placeholder}
+        value={value}
+        onChange={(e) => { onChange(e.target.value); setOpen(true); setHighlighted(0) }}
+        onKeyDown={handleKeyDown}
+        autoComplete="off"
+      />
       {open && filtered.length && (
         <ul className="absolute z-10 w-full mt-1 rounded border border-gray-300 bg-white shadow-md max-h-48 overflow-auto">
           {filtered.map((opt, i) => (
-            <li key={opt} className={`px-2 py-1.5 cursor-pointer ${i === highlighted ? 'bg-gray-100' : ''}`} onMouseDown={(e) => { e.preventDefault(); onChange(opt); onSelect?.(opt); setOpen(false) }}>{opt}</li>
+            <li key={opt} className={cn('px-2 py-1.5 cursor-pointer', i === highlighted ? 'bg-gray-100' : '')} onMouseDown={(e) => { e.preventDefault(); onChange(opt); onSelect?.(opt); setOpen(false) }}>{opt}</li>
           ))}
         </ul>
       )}

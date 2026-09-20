@@ -81,3 +81,83 @@ Format per entry: **Context** / **Decision** / **Consequences**. Status: `accept
 **Consequences.**
 - Less to build now.
 - Revisit when the user feels the friction. Adding clone is a few lines on top of the existing actions.
+
+---
+
+## D-007 — React Router for deep linking · status: accepted
+
+**Context.** After building the SPA with Zustand view switching, users wanted direct URL access to specific lists, products, and settings for bookmarking and sharing.
+
+**Decision.** Add `react-router-dom` v6 with routes: `/` (lists), `/lists/:id` (detail), `/lists/:id/scanner`, `/products`, `/products/new`, `/products/:barcode`, `/settings`. Keep single-file `App.tsx` for simplicity.
+
+**Consequences.**
+- Direct URLs work for all views.
+- Browser back/forward buttons work.
+- Slight bundle increase (~15KB gzipped).
+- Can migrate to file-based routing later if app grows.
+
+---
+
+## D-008 — shadcn/ui component library · status: accepted
+
+**Context.** Custom autocomplete, modal, and form components were becoming inconsistent and hard to maintain. Visual polish matters for MVP.
+
+**Decision.** Adopt shadcn/ui (Radix UI + Tailwind) — copy-paste components into `src/components/ui/`. Installed: Button, Input, Textarea, Label, Dialog, Checkbox, Select, Separator, Badge. Added `class-variance-authority`, `clsx`, `tailwind-merge`, `lucide-react`.
+
+**Consequences.**
+- Consistent, accessible components out of the box.
+- Bundle size increase (~50KB gzipped) but replaces custom implementations.
+- Components are owned — can customize without fighting library API.
+- No version lock-in since code is local.
+
+---
+
+## D-009 — List state machine (preparing/shopping/reviewed) · status: accepted
+
+**Context.** Users wanted to track list lifecycle: planning at home, actively shopping in store, reviewing after.
+
+**Decision.** Add `state: 'preparing' | 'shopping' | 'reviewed'` to `StoreList`. Default is `preparing`. UI: badge in lists, dropdown in detail, cycle button in lists view.
+
+**Consequences.**
+- Enables filtering by state.
+- Simple 3-state machine, no complex transitions needed.
+- Can add timestamps per state later if needed.
+
+---
+
+## D-010 — Smart deduplication by barcode or exact name · status: accepted
+
+**Context.** Adding the same product multiple times (scan, then manual entry, then scan again) created duplicates.
+
+**Decision.** In `addItem`, check existing items by barcode OR case-insensitive exact name match. If found, increment `qty` instead of adding new item. Applies to manual entry, autocomplete selection, and scanner.
+
+**Consequences.**
+- No duplicate items in lists.
+- Quantity reflects actual intent.
+- Edge case: different products with same name (rare) will merge — acceptable for personal use.
+
+---
+
+## D-011 — Import/Export moved to Settings · status: accepted
+
+**Context.** Import/Export buttons cluttered the Products view.
+
+**Decision.** Move to `/settings` page with radio for products/lists, merge/replace checkbox, and export buttons for JSON/CSV.
+
+**Consequences.**
+- Products view focuses on catalog management.
+- Settings becomes the "data management" page.
+- One extra navigation step for import/export.
+
+---
+
+## D-012 — Item quantity inline controls with modal delete · status: accepted
+
+**Context.** Removing items via X button was accidental; no way to decrement quantity.
+
+**Decision.** Add +/- buttons per item row. Decrementing below 1 opens a shadcn/ui Dialog confirmation. Trashcan icon also opens same modal.
+
+**Consequences.**
+- Intentional quantity adjustment.
+- Accidental removal prevented by modal.
+- Visual consistency with shadcn/ui Dialog.
