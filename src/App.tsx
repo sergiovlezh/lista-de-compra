@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
-import { BrowserRouter, Routes, Route, Link, useNavigate, useParams, useLocation, Outlet } from 'react-router-dom'
-import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode'
+import { BrowserRouter, Routes, Route, Link, useNavigate, useParams, useLocation, useSearchParams, Outlet } from 'react-router-dom'
 import { listTotal, useStore, type State } from './store'
+import { Scanner } from './components/Scanner'
 import type { ProductMemory, Item, StoreList, ListState } from './types'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -26,57 +26,6 @@ const stateColors: Record<ListState, 'default' | 'secondary' | 'success' | 'warn
   reviewed: 'success',
 }
 
-const FORMATS = [
-  Html5QrcodeSupportedFormats.EAN_13,
-  Html5QrcodeSupportedFormats.EAN_8,
-  Html5QrcodeSupportedFormats.UPC_A,
-  Html5QrcodeSupportedFormats.UPC_E,
-  Html5QrcodeSupportedFormats.CODE_128,
-  Html5QrcodeSupportedFormats.QR_CODE,
-]
-
-async function unlockAudio(): Promise<AudioContext> {
-  const AudioContext = window.AudioContext || (window as any).webkitAudioContext
-  const ctx = new AudioContext()
-  await ctx.resume().catch(() => {})
-  return ctx
-}
-
-function beep(ctx: AudioContext) {
-  const osc = ctx.createOscillator()
-  const gain = ctx.createGain()
-  osc.type = 'sine'
-  osc.frequency.value = 800
-  gain.gain.value = 0.3
-  osc.connect(gain)
-  gain.connect(ctx.destination)
-  osc.start()
-  gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.1)
-  osc.stop(ctx.currentTime + 0.1)
-}
-
-// ponytail: vibrate always fires, audio needs unlocked context from button click
-function playBeep(ctx: AudioContext | null) {
-  if ('vibrate' in navigator) navigator.vibrate(50)
-  if (!ctx) return
-  if (ctx.state === 'suspended') {
-    ctx.resume().then(() => beep(ctx)).catch(() => {})
-  } else {
-    beep(ctx)
-  }
-}
-
-function stopScanner(ref: { current: Html5Qrcode | null }) {
-  const scanner = ref.current
-  ref.current = null
-  if (scanner) {
-    scanner.stop().catch(() => {})
-    try {
-      scanner.clear()
-    } catch {}
-  }
-}
-
 const navLink = 'inline-flex items-center justify-center px-3 py-2 text-sm font-medium rounded-lg text-primary hover:bg-primary-light transition-colors min-h-[40px] touch-manipulation'
 const pageHeader = 'sticky top-0 z-40 flex items-center justify-between gap-2 px-4 py-3 bg-white/95 backdrop-blur-sm border-b border-border'
 
@@ -87,7 +36,7 @@ export default function App() {
         <Route path="/" element={<Layout />}>
           <Route index element={<Lists />} />
           <Route path="lists/:listId" element={<Detail />} />
-          <Route path="lists/:listId/scanner" element={<Scanner />} />
+          <Route path="lists/:listId/scanner" element={<ListScanner />} />
           <Route path="products" element={<Products />} />
           <Route path="products/new" element={<ProductForm />} />
           <Route path="products/:barcode" element={<ProductForm />} />
@@ -444,139 +393,26 @@ function Detail() {
 }
 
 
-function Scanner() {
+function ListScanner() {
   const { listId } = useParams<{ listId: string }>()
   if (!listId) return <Empty text="Lista no encontrada." />
-  const products = useStore((s: State) => s.products)
   const addItem = useStore((s: State) => s.addItem)
   const navigate = useNavigate()
-  const [started, setStarted] = useState(false)
-  const [error, setError] = useState('')
-  const [miss, setMiss] = useState<{ barcode: string } | null>(null)
-  const [missName, setMissName] = useState('')
-  const [missPrice, setMissPrice] = useState('')
-  const scannerRef = useRef<Html5Qrcode | null>(null)
-  const scannedRef = useRef('')
-  const audioContextRef = useRef<AudioContext | null>(null)
-
-  useEffect(() => () => {
-    scannerRef.current?.stop().catch(() => {})
-    try { scannerRef.current?.clear() } catch {}
-  }, [])
-
-  const handleScanSuccess = (code: string) => {
-    if (scannedRef.current === code) return
-    scannedRef.current = code
-    const known = useStore.getState().products[code]
-    if (known) {
-      playBeep(audioContextRef.current)
-      addItem(listId, { barcode: code, name: known.name, price: known.price })
-      navigate(`/lists/${listId}`)
-    } else {
-      stopScanner(scannerRef)
-      setStarted(false)
-      setMiss({ barcode: code })
-      playBeep(audioContextRef.current)
-    }
-  }
-
-  const start = async () => {
-    setError('')
-    try {
-      audioContextRef.current = await unlockAudio()
-      const qr = new Html5Qrcode('reader', { formatsToSupport: FORMATS, verbose: false })
-      scannerRef.current = qr
-      setStarted(true)
-      await qr.start(
-        { facingMode: 'environment' },
-        { fps: 10, qrbox: { width: 300, height: 300 } },
-        handleScanSuccess,
-        () => {},
-      )
-    } catch {
-      setError('Sin cámara. Revisa permisos o usa entrada manual.')
-      setStarted(false)
-    }
-  }
-
-  const stop = () => {
-    stopScanner(scannerRef)
-    setStarted(false)
-    navigate(`/lists/${listId}`)
-  }
-
-  if (miss)
-    return (
-      <div className="space-y-4">
-        <div className="rounded-xl border border-border bg-white shadow-sm">
-          <div className="p-4 space-y-4">
-            <h2 className="text-lg font-semibold text-text">Código nuevo: <span className="font-mono text-primary">{miss.barcode}</span></h2>
-            <form className="space-y-4" onSubmit={(e) => {
-              e.preventDefault()
-              addItem(listId, { barcode: miss.barcode, name: missName.trim() || miss.barcode, price: parseFloat(missPrice) || 0 })
-              navigate(`/lists/${listId}`)
-            }}>
-              <div>
-                <Label htmlFor="miss-name" className="block text-sm font-medium text-text mb-1.5">Nombre *</Label>
-                <Input id="miss-name" placeholder="Nombre del producto" value={missName} onChange={(e) => setMissName(e.target.value)} autoFocus required />
-              </div>
-              <div>
-                <Label htmlFor="miss-price" className="block text-sm font-medium text-text mb-1.5">Precio</Label>
-                <Input id="miss-price" placeholder="0.00" inputMode="decimal" value={missPrice} onChange={(e) => setMissPrice(e.target.value)} />
-              </div>
-              <div className="flex gap-2">
-                <Button type="submit" className="btn-primary btn-block btn-lg">Guardar y agregar</Button>
-                <Button type="button" variant="outline" className="btn-block btn-lg" onClick={() => { setMiss(null); setTimeout(start, 50) }}>Volver a escanear</Button>
-              </div>
-            </form>
-          </div>
-        </div>
-      </div>
-    )
 
   return (
-    <div className="space-y-4">
-      <div className="space-y-4 max-w-md mx-auto">
-        <div id="reader" className="w-full aspect-video bg-black relative overflow-hidden rounded-xl border border-border" style={{ minHeight: '300px', maxHeight: '50vh' }}>
-          {started && (
-            <>
-              <div className="scanner-cutout">
-                <div className="scanner-line" />
-              </div>
-            </>
-          )}
-        </div>
-        {!started ? (
-          <div className="rounded-xl border border-border bg-white shadow-sm">
-            <div className="p-6 space-y-4 text-center">
-              <Camera className="h-16 w-16 text-text-muted mx-auto" aria-hidden="true" />
-              <div>
-                <h2 className="text-lg font-semibold text-text">Escanear código de barras</h2>
-                <p className="text-text-muted mt-1">Apunta la cámara al código de barras del producto</p>
-              </div>
-              <Button className="btn-primary btn-block btn-lg" onClick={start}>
-                <Camera className="h-5 w-5 mr-2" /> Iniciar escáner
-              </Button>
-              {error && <p className="text-sm text-destructive">{error}</p>}
-            </div>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            <div className="flex justify-center p-4">
-              <Button variant="destructive" className="btn-lg" onClick={stop} style={{ minWidth: '160px' }}>
-                <X className="h-5 w-5 mr-2" /> Cancelar
-              </Button>
-            </div>
-            {error && <div className="rounded-xl border border-border bg-white shadow-sm p-4"><p className="text-center text-sm text-destructive">{error}</p></div>}
-            {started && !error && (
-              <div className="rounded-xl border border-border bg-white shadow-sm p-4">
-                <p className="text-center text-sm text-text-muted">Apunta el código dentro del marco. Productos: {Object.keys(products).length}</p>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-    </div>
+    <Scanner
+      elementId="reader"
+      onScan={(code: string) => {
+        const known = useStore.getState().products[code]
+        if (known) {
+          addItem(listId, { barcode: code, name: known.name, price: known.price })
+          navigate(`/lists/${listId}`)
+        } else {
+          navigate(`/products/new?barcode=${encodeURIComponent(code)}&addToList=${listId}`)
+        }
+      }}
+      onStop={() => navigate(`/lists/${listId}`)}
+    />
   )
 }
 
@@ -630,25 +466,38 @@ function ProductForm() {
   const deleteProduct = useStore((s: State) => s.deleteProduct)
   const isNew = !barcode
 
+  const [searchParams] = useSearchParams()
+  const addToList = searchParams.get('addToList')
+  const scannedCode = searchParams.get('barcode') || ''
+
   const existing = barcode ? products[barcode] : null
   const [name, setName] = useState(existing?.name || '')
   const [price, setPrice] = useState(existing?.price.toString() || '')
-  const [code, setCode] = useState(barcode || '')
+  const [code, setCode] = useState(barcode || scannedCode)
   const [scanning, setScanning] = useState(false)
-  const [scanError, setScanError] = useState('')
-  const scannerRef = useRef<Html5Qrcode | null>(null)
-  const audioContextRef = useRef<AudioContext | null>(null)
+  const [codeError, setCodeError] = useState('')
+  const addItem = useStore((s: State) => s.addItem)
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault()
     const finalCode = code.trim()
     const finalName = name.trim()
     if (!finalName) return
+    const clash = finalCode && finalCode !== barcode ? products[finalCode] : undefined
+    if (clash) {
+      setCodeError(`Ese código ya es de "${clash.name}"`)
+      return
+    }
 
     if (isNew) {
       const newBarcode = finalCode || uid()
       updateProduct(newBarcode, { name: finalName, price: parseFloat(price) || 0, updatedAt: Date.now() })
-      navigate('/products')
+      if (addToList) {
+        addItem(addToList, { barcode: newBarcode, name: finalName, price: parseFloat(price) || 0 })
+        navigate(`/lists/${addToList}`)
+      } else {
+        navigate('/products')
+      }
     } else {
       const finalBarcode = finalCode || barcode!
       if (finalBarcode !== barcode) {
@@ -669,41 +518,6 @@ function ProductForm() {
     }
   }
 
-  const startScan = async () => {
-    setScanError('')
-    setScanning(true)
-    try {
-      audioContextRef.current = await unlockAudio()
-      const qr = new Html5Qrcode('product-scanner', { formatsToSupport: FORMATS, verbose: false })
-      scannerRef.current = qr
-      await qr.start(
-        { facingMode: 'environment' },
-        { fps: 10, qrbox: { width: 250, height: 250 } },
-        (scannedCode) => {
-          setCode(scannedCode)
-          const known = useStore.getState().products[scannedCode]
-          if (known) {
-            setName(known.name)
-            setPrice(known.price.toString())
-            playBeep(audioContextRef.current)
-          }
-          stopScan()
-        },
-        () => {},
-      )
-    } catch {
-      setScanError('No se pudo acceder a la cámara. Ingrese el código manualmente.')
-      setScanning(false)
-    }
-  }
-
-  const stopScan = () => {
-    stopScanner(scannerRef)
-    setScanning(false)
-  }
-
-  useEffect(() => () => stopScan(), [])
-
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -719,13 +533,47 @@ function ProductForm() {
             <div className="space-y-2">
               <Label htmlFor="product-barcode" className="block text-sm font-medium text-text mb-1.5">Código de barras</Label>
               <div className="flex gap-2">
-                <Input id="product-barcode" placeholder="Código" value={code} onChange={(e) => setCode(e.target.value)} disabled={scanning} className="flex-1" />
-                <Button type="button" variant={scanning ? 'destructive' : 'outline'} className="btn-lg" onClick={scanning ? stopScan : startScan}>
+                <Input
+                  id="product-barcode"
+                  placeholder="Código"
+                  value={code}
+                  onChange={(e) => {
+                    setCode(e.target.value)
+                    setCodeError('')
+                  }}
+                  disabled={scanning}
+                  className="flex-1"
+                />
+                <Button
+                  type="button"
+                  variant={scanning ? 'destructive' : 'outline'}
+                  className="btn-lg"
+                  onClick={() => setScanning(!scanning)}
+                >
                   {scanning ? '✕ Cancelar' : <><Camera className="h-5 w-5 mr-1" /> Escanear</>}
                 </Button>
               </div>
-              {scanError && <p className="text-sm text-destructive">{scanError}</p>}
-              {scanning && <div id="product-scanner" className="w-full aspect-video bg-black rounded-lg overflow-hidden" />}
+              {codeError && <p className="text-sm text-destructive">{codeError}</p>}
+              {scanning && (
+                <Scanner
+                  elementId="product-scanner"
+                  onScan={(scannedCode) => {
+                    const known = useStore.getState().products[scannedCode]
+                    if (known && scannedCode !== barcode) {
+                      setCodeError(`Ese código ya es de "${known.name}"`)
+                    } else {
+                      setCode(scannedCode)
+                      setCodeError('')
+                      if (known) {
+                        setName(known.name)
+                        setPrice(known.price.toString())
+                      }
+                    }
+                    setScanning(false)
+                  }}
+                  onStop={() => setScanning(false)}
+                />
+              )}
             </div>
 
             <div className="space-y-2">
