@@ -15,9 +15,6 @@ import { Badge } from '@/components/ui/badge'
 import { Trash2, Camera, Plus, Minus, X, RotateCcw, ArrowLeft } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
-const primary = 'bg-gray-900 text-white'
-const ghost = 'border border-gray-300'
-
 const stateLabels: Record<ListState, string> = {
   preparing: 'Preparando',
   shopping: 'Comprando',
@@ -25,9 +22,12 @@ const stateLabels: Record<ListState, string> = {
 }
 const stateColors: Record<ListState, 'default' | 'secondary' | 'success' | 'warning' | 'destructive'> = {
   preparing: 'default',
-  shopping: 'secondary',
+  shopping: 'warning',
   reviewed: 'success',
 }
+
+const navLink = 'inline-flex items-center justify-center px-3 py-2 text-sm font-medium rounded-lg text-primary hover:bg-primary-light transition-colors min-h-[40px] touch-manipulation'
+const pageHeader = 'sticky top-0 z-40 flex items-center justify-between gap-2 px-4 py-3 bg-white/95 backdrop-blur-sm border-b border-border'
 
 export default function App() {
   return (
@@ -53,23 +53,23 @@ function Layout() {
   const isSettings = location.pathname === '/settings'
 
   return (
-    <main className="mx-auto max-w-3xl min-h-screen p-4">
-      <header className="mb-4 flex items-center justify-between">
-        <h1 className="text-xl font-semibold">lista-de-compra</h1>
-        <nav className="flex gap-2">
-          <Link to="/" className={ghost}>Listas</Link>
-          <Link to="/products" className={ghost}>Productos</Link>
-          <Link to="/settings" className={ghost}>Ajustes</Link>
+    <main className="min-h-screen bg-background safe-area-inset-bottom safe-area-inset-top">
+      <header className={pageHeader}>
+        <h1 className="text-lg font-semibold text-text">lista-de-compra</h1>
+        <nav className="flex gap-1">
+          <Link to="/" className={navLink}>Listas</Link>
+          <Link to="/products" className={navLink}>Productos</Link>
+          <Link to="/settings" className={navLink}>Ajustes</Link>
         </nav>
       </header>
-      <div className="space-y-3">
+      <div className="px-4 py-4 pb-24 space-y-4">
         {isProducts && !isSettings && (
           <div className="flex gap-2">
-            <Link to="/products/new" className={primary}>+ Nuevo</Link>
+            <Link to="/products/new" className="btn-primary btn-block btn-lg">+ Nuevo producto</Link>
           </div>
         )}
+        <Outlet />
       </div>
-      <Outlet />
     </main>
   )
 }
@@ -98,61 +98,75 @@ function Lists() {
 
   return (
     <div className="space-y-4">
-      <section className="rounded border p-4 space-y-3">
-        <h2 className="font-medium">Nueva lista</h2>
-        <form
-          className="flex gap-2 flex-wrap"
-          onSubmit={(e) => {
-            e.preventDefault()
-            createList(store.trim() || 'Sin tienda', date)
-            setStore('')
-            setDate(today)
-          }}
-        >
-          <Input placeholder="Tienda" value={store} onChange={(e) => setStore(e.target.value)} className="flex-1 min-w-[200px]" />
-          <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-40" />
-          <Button type="submit">+ Crear</Button>
-        </form>
+      <section className="rounded-xl border border-border bg-white shadow-sm">
+        <div className="px-4 py-3 border-b border-border">
+          <h2 className="font-medium text-text">Nueva lista</h2>
+        </div>
+        <div className="p-4 space-y-3">
+          <form
+            className="flex flex-col gap-3 sm:flex-row"
+            onSubmit={(e) => {
+              e.preventDefault()
+              createList(store.trim() || 'Sin tienda', date)
+              setStore('')
+              setDate(today)
+            }}
+          >
+            <div className="flex-1">
+              <Label htmlFor="new-list-store" className="block text-sm font-medium text-text mb-1.5">Tienda</Label>
+              <Input id="new-list-store" placeholder="Ej: Mercadona" value={store} onChange={(e) => setStore(e.target.value)} />
+            </div>
+            <div className="w-full sm:w-[160px]">
+              <Label htmlFor="new-list-date" className="block text-sm font-medium text-text mb-1.5">Fecha</Label>
+              <Input id="new-list-date" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+            </div>
+            <Button type="submit" className="btn-primary btn-block sm:self-end" style={{ minWidth: '140px' }}>+ Crear</Button>
+          </form>
+        </div>
       </section>
 
       <section className="space-y-3">
-        <div className="flex gap-2 flex-wrap items-center">
-          <Label htmlFor="filter-state" className="text-sm">Estado:</Label>
-          <Select value={filterState} onValueChange={setFilterState}>
-            <SelectTrigger id="filter-state" className="w-[180px]">
-              <SelectValue placeholder="Todos" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos</SelectItem>
-              <SelectItem value="preparing">Preparando</SelectItem>
-              <SelectItem value="shopping">Comprando</SelectItem>
-              <SelectItem value="reviewed">Revisado</SelectItem>
-            </SelectContent>
-          </Select>
-          <Label htmlFor="filter-date" className="text-sm">Fecha:</Label>
-          <Input id="filter-date" type="date" value={filterDate} onChange={(e) => setFilterDate(e.target.value)} className="w-40" />
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <div className="flex-1">
+            <Label htmlFor="filter-state" className="sr-only">Filtrar por estado</Label>
+            <Select value={filterState} onValueChange={setFilterState}>
+              <SelectTrigger id="filter-state" className="w-full">
+                <SelectValue placeholder="Todos los estados" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos</SelectItem>
+                <SelectItem value="preparing">Preparando</SelectItem>
+                <SelectItem value="shopping">Comprando</SelectItem>
+                <SelectItem value="reviewed">Revisado</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex-1">
+            <Label htmlFor="filter-date" className="sr-only">Filtrar por fecha</Label>
+            <Input id="filter-date" type="date" value={filterDate} onChange={(e) => setFilterDate(e.target.value)} placeholder="Fecha" />
+          </div>
           {(filterState !== 'all' || filterDate) && (
-            <Button variant="ghost" size="sm" onClick={() => { setFilterState('all'); setFilterDate('') }}>
+            <Button variant="ghost" size="sm" onClick={() => { setFilterState('all'); setFilterDate('') }} className="self-end">
               <X className="h-4 w-4 mr-1" /> Limpiar
             </Button>
           )}
         </div>
 
         {filteredLists.length === 0 ? (
-          <div className="rounded border border-dashed p-6 text-center text-gray-500">
-            {lists.length === 0 ? 'Sin listas todavía. Crea la primera arriba.' : 'No hay listas que coincidan con los filtros.'}
+          <div className="rounded-xl border border-border bg-white shadow-sm py-12 text-center">
+            <p className="text-text-muted">{lists.length === 0 ? 'Sin listas todavía. Crea la primera arriba.' : 'No hay listas que coincidan con los filtros.'}</p>
           </div>
         ) : (
-          <ul className="divide-y rounded border">
+          <ul className="rounded-xl border border-border bg-white shadow-sm divide-y divide-border scrollbar-thin">
             {filteredLists.map((l) => (
-              <li key={l.id} className="p-3">
-                <Link to={`/lists/${l.id}`} className="flex items-center justify-between gap-2">
+              <li key={l.id}>
+                <Link to={`/lists/${l.id}`} className="flex items-center justify-between gap-2 p-4 border-b border-border last:border-0 group">
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium truncate">{l.store || 'Sin tienda'}</span>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-medium truncate text-text">{l.store || 'Sin tienda'}</span>
                       <Badge variant={stateColors[l.state]}>{stateLabels[l.state]}</Badge>
                     </div>
-                    <div className="text-sm text-gray-500">
+                    <div className="text-sm text-text-muted mt-1">
                       {l.date} · {l.items.filter((i) => i.checked).length}/{l.items.length} · ${listTotal(l).toFixed(2)}
                     </div>
                   </div>
@@ -161,14 +175,14 @@ function Lists() {
                       e.preventDefault()
                       const newState: ListState = l.state === 'preparing' ? 'shopping' : l.state === 'shopping' ? 'reviewed' : 'preparing'
                       updateList(l.id, { state: newState })
-                    }}>
-                      <RotateCcw className="h-4 w-4" />
+                    }} aria-label="Cambiar estado">
+                      <RotateCcw className="h-5 w-5" />
                     </Button>
                     <Button variant="ghost" size="icon" onClick={(e) => {
                       e.preventDefault()
                       if (confirm('¿Eliminar esta lista?')) deleteList(l.id)
-                    }}>
-                      <Trash2 className="h-4 w-4 text-red-600" />
+                    }} aria-label="Eliminar lista">
+                      <Trash2 className="h-5 w-5 text-destructive" />
                     </Button>
                   </div>
                 </Link>
@@ -252,85 +266,116 @@ function Detail() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex gap-2 flex-1">
-          <Input value={list.store} onChange={(e) => updateList(listId!, { store: e.target.value })} placeholder="Tienda" className="flex-1" />
-          <Input type="date" value={list.date} onChange={(e) => updateList(listId!, { date: e.target.value })} className="w-40" />
-          <Select value={list.state} onValueChange={(v) => updateList(listId!, { state: v as ListState })}>
-            <SelectTrigger className="w-36">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="preparing">Preparando</SelectItem>
-              <SelectItem value="shopping">Comprando</SelectItem>
-              <SelectItem value="reviewed">Revisado</SelectItem>
-            </SelectContent>
-          </Select>
+      <div className="flex items-start justify-between gap-2 flex-wrap">
+        <div className="flex flex-col gap-2 flex-1 min-w-0 sm:flex-row">
+          <div className="flex-1 min-w-0">
+            <Label htmlFor="detail-store" className="sr-only">Tienda</Label>
+            <Input id="detail-store" value={list.store} onChange={(e) => updateList(listId!, { store: e.target.value })} placeholder="Tienda" />
+          </div>
+          <div className="w-full sm:w-[160px]">
+            <Label htmlFor="detail-date" className="sr-only">Fecha</Label>
+            <Input id="detail-date" type="date" value={list.date} onChange={(e) => updateList(listId!, { date: e.target.value })} />
+          </div>
+          <div className="w-full sm:w-[140px]">
+            <Label htmlFor="detail-state" className="sr-only">Estado</Label>
+            <Select value={list.state} onValueChange={(v) => updateList(listId!, { state: v as ListState })}>
+              <SelectTrigger id="detail-state" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="preparing">Preparando</SelectItem>
+                <SelectItem value="shopping">Comprando</SelectItem>
+                <SelectItem value="reviewed">Revisado</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
-        <Button variant="ghost" size="icon" onClick={() => navigate('/')}>
-          <ArrowLeft className="h-4 w-4" />
+        <Button variant="ghost" size="icon" onClick={() => navigate('/')} aria-label="Volver">
+          <ArrowLeft className="h-5 w-5" />
         </Button>
       </div>
 
-      <div className="space-y-3">
-        <form className="flex gap-2 flex-wrap" onSubmit={submit}>
-          <Input placeholder="Código" value={barcode} onChange={(e) => setBarcode(e.target.value)} className="flex-1 min-w-[120px]" />
-          <Autocomplete value={name} onChange={setName} options={productNames} placeholder="Nombre" onSelect={onNameSelect} className="flex-1 min-w-[150px]" />
-          <Input placeholder="$" inputMode="decimal" value={price} onChange={(e) => setPrice(e.target.value)} className="w-24" />
-          <Input type="number" min="1" max="99" value={qty} onChange={(e) => setQty(parseInt(e.target.value) || 1)} className="w-20" />
-          <Button type="submit">+</Button>
-        </form>
+      <div className="rounded-xl border border-border bg-white shadow-sm">
+        <div className="p-4 space-y-3">
+          <form className="flex flex-col gap-3 sm:flex-row" onSubmit={submit}>
+            <div className="flex-1 min-w-0">
+              <Label htmlFor="add-barcode" className="sr-only">Código</Label>
+              <Input id="add-barcode" placeholder="Código" value={barcode} onChange={(e) => setBarcode(e.target.value)} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <Label htmlFor="add-name" className="sr-only">Nombre</Label>
+              <Autocomplete value={name} onChange={setName} options={productNames} placeholder="Nombre" onSelect={onNameSelect} />
+            </div>
+            <div className="w-full sm:w-[100px]">
+              <Label htmlFor="add-price" className="sr-only">Precio</Label>
+              <Input id="add-price" placeholder="$" inputMode="decimal" value={price} onChange={(e) => setPrice(e.target.value)} />
+            </div>
+            <div className="w-full sm:w-[80px]">
+              <Label htmlFor="add-qty" className="sr-only">Cantidad</Label>
+              <Input id="add-qty" type="number" min="1" max="99" value={qty} onChange={(e) => setQty(parseInt(e.target.value) || 1)} />
+            </div>
+            <Button type="submit" className="btn-primary btn-lg self-end" style={{ minWidth: '100px' }}>+</Button>
+          </form>
 
-        <Button className="w-full" onClick={() => navigate(`/lists/${listId}/scanner`)}>
-          <Camera className="h-4 w-4 mr-2" /> Escanear
-        </Button>
+          <Button className="btn-secondary btn-block btn-lg" onClick={() => navigate(`/lists/${listId}/scanner`)}>
+            <Camera className="h-5 w-5 mr-2" /> Escanear código
+          </Button>
+        </div>
       </div>
 
       <Separator />
 
       {list.items.length === 0 ? (
-        <div className="rounded border border-dashed p-6 text-center text-gray-500">Lista vacía. Agrega items arriba o escanea.</div>
+        <div className="rounded-xl border border-border bg-white shadow-sm py-12 text-center">
+          <p className="text-text-muted">Lista vacía. Agrega items arriba o escanea.</p>
+        </div>
       ) : (
-        <div className="rounded border overflow-hidden">
-          <div className="grid grid-cols-[1fr_60px_80px_80px_100px_40px] gap-2 px-3 py-2 text-xs font-medium text-gray-500 border-b bg-gray-50">
+        <div className="rounded-xl border border-border bg-white shadow-sm overflow-hidden">
+          <div className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-2 px-3 py-2 text-xs font-medium text-text-muted border-b border-border bg-gray-50 sticky top-0 z-10">
             <div>Producto</div>
-            <div className="text-center">Cantidad</div>
-            <div className="text-right pr-2">Precio</div>
-            <div className="text-right pr-2">Total</div>
-            <div></div>
-            <div></div>
+            <div className="text-center w-20">Cant.</div>
+            <div className="text-right pr-3 w-24">Precio</div>
+            <div className="text-right pr-3 w-28">Total</div>
+            <div className="w-12"></div>
           </div>
-          <ul className="divide-y max-h-[50vh] overflow-auto">
+          <ul className="divide-y divide-border scrollbar-thin max-h-[60vh] overflow-auto">
             {list.items.map((i: Item) => (
-              <li key={i.id} className="grid grid-cols-[1fr_60px_80px_80px_100px_40px] gap-2 px-3 py-2 items-center">
+              <li key={i.id} className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-2 px-3 py-3 items-center">
                 <div className="min-w-0">
-                  <div className={cn(i.checked ? 'line-through text-gray-400' : '')}>{i.name}</div>
-                  <div className="text-xs text-gray-500">{i.barcode}</div>
+                  <div className={cn('font-medium truncate', i.checked ? 'line-through text-text-muted' : 'text-text')}>{i.name}</div>
+                  {i.barcode && <div className="text-xs text-text-muted truncate">{i.barcode}</div>}
                 </div>
-                <div className="flex items-center justify-center gap-1">
-                  <Button variant="ghost" size="icon" onClick={() => handleQtyChange(i.id, i.qty - 1)} disabled={i.qty <= 1}>
-                    <Minus className="h-4 w-4" />
+                <div className="flex items-center justify-center gap-1 w-20">
+                  <Button variant="ghost" size="icon" onClick={() => handleQtyChange(i.id, i.qty - 1)} disabled={i.qty <= 1} aria-label="Decrementar">
+                    <Minus className="h-5 w-5" />
                   </Button>
-                  <span className="w-10 text-center">{i.qty}</span>
-                  <Button variant="ghost" size="icon" onClick={() => handleQtyChange(i.id, i.qty + 1)}>
-                    <Plus className="h-4 w-4" />
+                  <span className="w-10 text-center font-medium text-text">{i.qty}</span>
+                  <Button variant="ghost" size="icon" onClick={() => handleQtyChange(i.id, i.qty + 1)} aria-label="Incrementar">
+                    <Plus className="h-5 w-5" />
                   </Button>
                 </div>
-                <div className="text-right pr-2 text-sm">${i.price.toFixed(2)}</div>
-                <div className="text-right pr-2 text-sm font-medium">${(i.price * i.qty).toFixed(2)}</div>
-                <Checkbox checked={i.checked} onCheckedChange={() => toggleItem(listId!, i.id)} />
-                <Button variant="ghost" size="icon" onClick={() => { setDeleteConfirmItemId(i.id); setShowDeleteConfirm(true) }}>
-                  <Trash2 className="h-4 w-4 text-red-600" />
-                </Button>
+                <div className="text-right pr-3 w-24 text-sm text-text">${i.price.toFixed(2)}</div>
+                <div className="text-right pr-3 w-28 text-sm font-medium text-primary">${(i.price * i.qty).toFixed(2)}</div>
+                <div className="flex items-center justify-end gap-2 w-12">
+                  <Checkbox checked={i.checked} onCheckedChange={() => toggleItem(listId!, i.id)} className="h-5 w-5" />
+                  <Button variant="ghost" size="icon" onClick={() => { setDeleteConfirmItemId(i.id); setShowDeleteConfirm(true) }} aria-label="Eliminar">
+                    <Trash2 className="h-5 w-5 text-destructive" />
+                  </Button>
+                </div>
               </li>
             ))}
           </ul>
         </div>
       )}
 
-      <div className="text-right font-semibold text-lg">Total: ${listTotal(list).toFixed(2)}</div>
+      <div className="text-right font-semibold text-xl text-text">Total: ${listTotal(list).toFixed(2)}</div>
 
-      <Textarea rows={2} placeholder="Notas" value={list.note} onChange={(e) => updateList(listId!, { note: e.target.value })} />
+      <div className="rounded-xl border border-border bg-white shadow-sm">
+        <div className="p-4">
+          <Label htmlFor="list-note" className="block text-sm font-medium text-text mb-1.5">Notas</Label>
+          <Textarea id="list-note" rows={3} placeholder="Notas adicionales..." value={list.note} onChange={(e) => updateList(listId!, { note: e.target.value })} />
+        </div>
+      </div>
 
       <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
         <DialogContent>
@@ -345,8 +390,8 @@ function Detail() {
         </DialogContent>
       </Dialog>
 
-      <Button variant="outline" onClick={() => { if (confirm('¿Eliminar esta lista?')) { deleteList(listId!); navigate('/') } }} className="w-full">
-        <Trash2 className="h-4 w-4 mr-2" /> Eliminar lista
+      <Button variant="outline" onClick={() => { if (confirm('¿Eliminar esta lista?')) { deleteList(listId!); navigate('/') } }} className="btn-block btn-lg">
+        <Trash2 className="h-5 w-5 mr-2" /> Eliminar lista
       </Button>
     </div>
   )
@@ -363,16 +408,23 @@ function Scanner() {
   const [miss, setMiss] = useState<{ barcode: string } | null>(null)
   const [missName, setMissName] = useState('')
   const [missPrice, setMissPrice] = useState('')
+  const [permissionDenied, setPermissionDenied] = useState(false)
   const scannerRef = useRef<Html5Qrcode | null>(null)
   const scannedRef = useRef('')
+  const isMounted = useRef(true)
 
-  useEffect(() => () => {
-    scannerRef.current?.stop().catch(() => {})
-    try { scannerRef.current?.clear() } catch {}
+  useEffect(() => {
+    isMounted.current = true
+    return () => {
+      isMounted.current = false
+      scannerRef.current?.stop().catch(() => {})
+      try { scannerRef.current?.clear() } catch {}
+    }
   }, [])
 
   const start = async () => {
     setError('')
+    setPermissionDenied(false)
     try {
       const qr = new Html5Qrcode('reader', {
         formatsToSupport: [
@@ -388,6 +440,7 @@ function Scanner() {
         { facingMode: 'environment' },
         { fps: 10, qrbox: { width: 250, height: 250 } },
         (code) => {
+          if (!isMounted.current) return
           if (scannedRef.current === code) return
           scannedRef.current = code
           const known = useStore.getState().products[code]
@@ -398,10 +451,19 @@ function Scanner() {
             setMiss({ barcode: code })
           }
         },
-        () => {},
+        () => {
+          // Silently ignore scan errors (no code found)
+        }
       )
-    } catch {
-      setError('Sin cámara. Revisa permisos o usa entrada manual.')
+    } catch (err) {
+      if (!isMounted.current) return
+      const errorMessage = err instanceof Error ? err.message : String(err)
+      if (errorMessage.includes('permission') || errorMessage.includes('denied') || errorMessage.includes('NotAllowedError')) {
+        setPermissionDenied(true)
+        setError('Permiso de cámara denegado. Actívalo en la configuración del navegador.')
+      } else {
+        setError('No se pudo acceder a la cámara. Verifica los permisos.')
+      }
       setStarted(false)
     }
   }
@@ -415,46 +477,71 @@ function Scanner() {
 
   if (miss)
     return (
-      <div className="space-y-4 p-4">
-        <h2 className="text-lg font-semibold">Código nuevo: {miss.barcode}</h2>
-        <form className="space-y-3" onSubmit={(e) => {
-          e.preventDefault()
-          addItem(listId, { barcode: miss.barcode, name: missName.trim() || miss.barcode, price: parseFloat(missPrice) || 0, qty: 1 })
-          navigate(`/lists/${listId}`)
-        }}>
-          <div>
-            <Label>Nombre</Label>
-            <Input placeholder="Nombre" value={missName} onChange={(e) => setMissName(e.target.value)} autoFocus required />
+      <div className="space-y-4">
+        <div className="rounded-xl border border-border bg-white shadow-sm">
+          <div className="p-4 space-y-4">
+            <h2 className="text-lg font-semibold text-text">Código nuevo: <span className="font-mono text-primary">{miss.barcode}</span></h2>
+            <form className="space-y-4" onSubmit={(e) => {
+              e.preventDefault()
+              addItem(listId, { barcode: miss.barcode, name: missName.trim() || miss.barcode, price: parseFloat(missPrice) || 0, qty: 1 })
+              navigate(`/lists/${listId}`)
+            }}>
+              <div>
+                <Label htmlFor="miss-name" className="block text-sm font-medium text-text mb-1.5">Nombre *</Label>
+                <Input id="miss-name" placeholder="Nombre del producto" value={missName} onChange={(e) => setMissName(e.target.value)} autoFocus required />
+              </div>
+              <div>
+                <Label htmlFor="miss-price" className="block text-sm font-medium text-text mb-1.5">Precio</Label>
+                <Input id="miss-price" placeholder="0.00" inputMode="decimal" value={missPrice} onChange={(e) => setMissPrice(e.target.value)} />
+              </div>
+              <div className="flex gap-2">
+                <Button type="submit" className="btn-primary btn-block btn-lg">Guardar y agregar</Button>
+                <Button type="button" variant="outline" className="btn-block btn-lg" onClick={() => { setMiss(null); start() }}>Volver a escanear</Button>
+              </div>
+            </form>
           </div>
-          <div>
-            <Label>Precio</Label>
-            <Input placeholder="0.00" inputMode="decimal" value={missPrice} onChange={(e) => setMissPrice(e.target.value)} />
-          </div>
-          <div className="flex gap-2">
-            <Button type="submit">Guardar y agregar</Button>
-            <Button type="button" variant="outline" onClick={() => { setMiss(null); start() }}>Volver a escanear</Button>
-          </div>
-        </form>
+        </div>
       </div>
     )
 
   return (
     <div className="space-y-4">
       {!started ? (
-        <Button className="w-full" onClick={start} size="lg">
-          <Camera className="h-4 w-4 mr-2" /> Iniciar escáner
-        </Button>
+        <div className="rounded-xl border border-border bg-white shadow-sm">
+          <div className="p-6 space-y-4 text-center">
+            <Camera className="h-16 w-16 text-text-muted mx-auto" aria-hidden="true" />
+            <div>
+              <h2 className="text-lg font-semibold text-text">Escanear código de barras</h2>
+              <p className="text-text-muted mt-1">Apunta la cámara al código de barras del producto</p>
+            </div>
+            <Button className="btn-primary btn-block btn-lg" onClick={start} disabled={permissionDenied}>
+              <Camera className="h-5 w-5 mr-2" /> {permissionDenied ? 'Permitir cámara en configuración' : 'Iniciar escáner'}
+            </Button>
+            {permissionDenied && (
+              <p className="text-sm text-text-muted">
+                Ve a la configuración del navegador y permite el acceso a la cámara para este sitio.
+              </p>
+            )}
+            {error && <p className="text-sm text-destructive">{error}</p>}
+          </div>
+        </div>
       ) : (
-        <>
-          <div id="reader" className="rounded border overflow-hidden bg-black aspect-video" />
-          <div className="flex items-center justify-center gap-4 p-4">
-            <Button variant="destructive" onClick={stop}>
-              <X className="h-4 w-4 mr-2" /> Cancelar
+        <div className="space-y-4">
+          <div className="rounded-xl border border-border bg-white shadow-sm overflow-hidden">
+            <div id="reader" className="w-full aspect-video bg-black relative" style={{ minHeight: '300px' }} />
+          </div>
+          <div className="flex items-center justify-center gap-3 p-4">
+            <Button variant="destructive" className="btn-block btn-lg sm:btn-sm" onClick={stop} style={{ minWidth: '160px' }}>
+              <X className="h-5 w-5 mr-2" /> Cancelar
             </Button>
           </div>
-          {error && <p className="text-center text-sm text-red-600">{error}</p>}
-          {started && <p className="text-center text-sm text-gray-500">Apunta al código. Conocidos: {Object.keys(products).length}</p>}
-        </>
+          {error && <div className="rounded-xl border border-border bg-white shadow-sm p-4"><p className="text-center text-sm text-destructive">{error}</p></div>}
+          {started && !error && (
+            <div className="rounded-xl border border-border bg-white shadow-sm p-4">
+              <p className="text-center text-sm text-text-muted">Apunta al código. Productos conocidos: {Object.keys(products).length}</p>
+            </div>
+          )}
+        </div>
       )}
     </div>
   )
@@ -469,18 +556,31 @@ function Products() {
   return (
     <div className="space-y-4">
       {productEntries.length === 0 ? (
-        <div className="rounded border border-dashed p-6 text-center text-gray-500">Sin productos guardados. Agregue items a listas o cree uno nuevo.</div>
+        <div className="rounded-xl border border-border bg-white shadow-sm py-12 text-center">
+          <Camera className="h-16 w-16 text-text-muted mx-auto mb-4" aria-hidden="true" />
+          <h3 className="font-semibold text-text mb-1">Sin productos guardados</h3>
+          <p className="text-text-muted">Agrega items a tus listas o crea uno nuevo</p>
+          <Link to="/products/new" className="btn-primary btn-block mt-4" style={{ maxWidth: '300px', margin: '1rem auto 0' }}>+ Crear producto</Link>
+        </div>
       ) : (
-        <ul className="divide-y rounded border">
+        <ul className="rounded-xl border border-border bg-white shadow-sm divide-y divide-border scrollbar-thin">
           {productEntries.map(([barcode, p]: [string, ProductMemory]) => (
-            <li key={barcode} className="flex items-center justify-between gap-2 p-3">
-              <Link to={`/products/${barcode}`} className="flex-1 min-w-0">
-                <div className="font-medium truncate">{p.name}</div>
-                <div className="text-xs text-gray-500">{barcode} · ${p.price.toFixed(2)} · {new Date(p.updatedAt).toLocaleString()}</div>
+            <li key={barcode}>
+              <Link to={`/products/${barcode}`} className="flex items-center justify-between gap-2 p-4 border-b border-border last:border-0 group">
+                <div className="flex-1 min-w-0">
+                  <div className="font-medium truncate text-text">{p.name}</div>
+                  <div className="text-sm text-text-muted flex items-center gap-2 flex-wrap">
+                    <span className="font-mono">{barcode}</span>
+                    <span>·</span>
+                    <span>${p.price.toFixed(2)}</span>
+                    <span>·</span>
+                    <span>{new Date(p.updatedAt).toLocaleString()}</span>
+                  </div>
+                </div>
+                <Button variant="ghost" size="icon" onClick={() => { if (confirm('¿Eliminar producto?')) deleteProduct(barcode) }} aria-label="Eliminar producto">
+                  <Trash2 className="h-5 w-5 text-destructive" />
+                </Button>
               </Link>
-              <Button variant="ghost" size="icon" onClick={() => { if (confirm('¿Eliminar producto?')) deleteProduct(barcode) }}>
-                <Trash2 className="h-4 w-4 text-red-600" />
-              </Button>
             </li>
           ))}
         </ul>
@@ -563,7 +663,7 @@ function ProductForm() {
         () => {},
       )
     } catch {
-      setScanError('Sin cámara. Ingrese el código manualmente.')
+      setScanError('No se pudo acceder a la cámara. Ingrese el código manualmente.')
       setScanning(false)
     }
   }
@@ -578,35 +678,44 @@ function ProductForm() {
 
   return (
     <div className="space-y-4">
-      <h2 className="text-lg font-semibold">{isNew ? 'Nuevo producto' : 'Editar producto'}</h2>
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-semibold text-text">{isNew ? 'Nuevo producto' : 'Editar producto'}</h2>
+        <Button variant="ghost" size="icon" onClick={() => navigate('/products')} aria-label="Cancelar">
+          <X className="h-5 w-5" />
+        </Button>
+      </div>
 
       <form className="space-y-4" onSubmit={handleSave}>
-        <div className="space-y-2">
-          <Label>Código de barras</Label>
-          <div className="flex gap-2">
-            <Input placeholder="Código" value={code} onChange={(e) => setCode(e.target.value)} disabled={scanning} className="flex-1" />
-            <Button type="button" variant={scanning ? 'destructive' : 'outline'} onClick={scanning ? stopScan : startScan}>
-              {scanning ? '✕ Cancelar' : <><Camera className="h-4 w-4 mr-1" /> Escanear</>}
-            </Button>
+        <div className="rounded-xl border border-border bg-white shadow-sm">
+          <div className="p-4 space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="product-barcode" className="block text-sm font-medium text-text mb-1.5">Código de barras</Label>
+              <div className="flex gap-2">
+                <Input id="product-barcode" placeholder="Código" value={code} onChange={(e) => setCode(e.target.value)} disabled={scanning} className="flex-1" />
+                <Button type="button" variant={scanning ? 'destructive' : 'outline'} className="btn-lg" onClick={scanning ? stopScan : startScan}>
+                  {scanning ? '✕ Cancelar' : <><Camera className="h-5 w-5 mr-1" /> Escanear</>}
+                </Button>
+              </div>
+              {scanError && <p className="text-sm text-destructive">{scanError}</p>}
+              {scanning && <div id="product-scanner" className="w-full aspect-video bg-black rounded-lg overflow-hidden" />}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="product-name" className="block text-sm font-medium text-text mb-1.5">Nombre *</Label>
+              <Input id="product-name" placeholder="Nombre del producto" value={name} onChange={(e) => setName(e.target.value)} required autoFocus />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="product-price" className="block text-sm font-medium text-text mb-1.5">Precio</Label>
+              <Input id="product-price" placeholder="0.00" inputMode="decimal" value={price} onChange={(e) => setPrice(e.target.value)} />
+            </div>
           </div>
-          {scanError && <p className="text-sm text-red-600">{scanError}</p>}
-          {scanning && <div id="product-scanner" className="rounded border overflow-hidden bg-black aspect-video" />}
-        </div>
-
-        <div className="space-y-2">
-          <Label>Nombre *</Label>
-          <Input placeholder="Nombre del producto" value={name} onChange={(e) => setName(e.target.value)} required autoFocus />
-        </div>
-
-        <div className="space-y-2">
-          <Label>Precio</Label>
-          <Input placeholder="0.00" inputMode="decimal" value={price} onChange={(e) => setPrice(e.target.value)} />
         </div>
 
         <div className="flex gap-2">
-          <Button type="submit">{isNew ? 'Crear' : 'Guardar'}</Button>
-          {!isNew && <Button type="button" variant="destructive" onClick={handleDelete}>Eliminar</Button>}
-          <Button type="button" variant="outline" onClick={() => navigate('/products')}>Cancelar</Button>
+          <Button type="submit" className="btn-primary btn-block btn-lg flex-1">{isNew ? 'Crear' : 'Guardar'}</Button>
+          {!isNew && <Button type="button" variant="destructive" className="btn-block btn-lg" onClick={handleDelete} style={{ maxWidth: '120px' }}>Eliminar</Button>}
+          <Button type="button" variant="outline" className="btn-block btn-lg" onClick={() => navigate('/products')} style={{ maxWidth: '120px' }}>Cancelar</Button>
         </div>
       </form>
     </div>
@@ -684,28 +793,42 @@ function Settings() {
   }
 
   return (
-    <div className="space-y-6">
-      <h2 className="text-lg font-semibold">Ajustes</h2>
+    <div className="space-y-4">
+      <h2 className="text-lg font-semibold text-text">Ajustes</h2>
 
-      <section className="space-y-3 rounded border p-4">
-        <h3 className="font-medium">Importar / Exportar</h3>
-        <div className="flex gap-2 flex-wrap text-sm">
-          <Label className="flex items-center gap-2"><input type="radio" name="importMode" checked={importMode === 'products'} onChange={() => setImportMode('products')} /> Productos</Label>
-          <Label className="flex items-center gap-2"><input type="radio" name="importMode" checked={importMode === 'lists'} onChange={() => setImportMode('lists')} /> Listas</Label>
-          <Label className="flex items-center gap-2"><input type="checkbox" checked={mergeMode} onChange={(e) => setMergeMode(e.target.checked)} /> Fusionar</Label>
+      <section className="rounded-xl border border-border bg-white shadow-sm">
+        <div className="px-4 py-3 border-b border-border">
+          <h3 className="font-medium text-text">Importar / Exportar</h3>
         </div>
-        <Input type="file" accept=".json,.csv" onChange={handleImport} />
-        <div className="flex gap-2 flex-wrap">
-          <Button variant="outline" onClick={() => handleExport(false)}>Exportar productos (JSON)</Button>
-          <Button variant="outline" onClick={() => handleExport(true)}>Exportar todo (JSON)</Button>
-          <Button variant="outline" onClick={handleExportCSV}>Exportar productos (CSV)</Button>
+        <div className="p-4 space-y-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <Label className="flex items-center gap-2 text-sm" htmlFor="import-products">
+              <input type="radio" name="importMode" id="import-products" checked={importMode === 'products'} onChange={() => setImportMode('products')} className="h-4 w-4 text-primary" /> Productos
+            </Label>
+            <Label className="flex items-center gap-2 text-sm" htmlFor="import-lists">
+              <input type="radio" name="importMode" id="import-lists" checked={importMode === 'lists'} onChange={() => setImportMode('lists')} className="h-4 w-4 text-primary" /> Listas
+            </Label>
+            <Label className="flex items-center gap-2 text-sm" htmlFor="import-merge">
+              <input type="checkbox" id="import-merge" checked={mergeMode} onChange={(e) => setMergeMode(e.target.checked)} className="h-4 w-4 text-primary rounded border-border" /> Fusionar
+            </Label>
+          </div>
+          <Input type="file" accept=".json,.csv" onChange={handleImport} />
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <Button variant="outline" className="btn-block sm:flex-1" onClick={() => handleExport(false)}>Exportar productos (JSON)</Button>
+            <Button variant="outline" className="btn-block sm:flex-1" onClick={() => handleExport(true)}>Exportar todo (JSON)</Button>
+            <Button variant="outline" className="btn-block sm:flex-1" onClick={handleExportCSV}>Exportar productos (CSV)</Button>
+          </div>
         </div>
       </section>
 
-      <section className="space-y-3 rounded border p-4">
-        <h3 className="font-medium">Información</h3>
-        <p className="text-sm text-gray-600">Productos guardados: {Object.keys(products).length}</p>
-        <p className="text-sm text-gray-600">Listas guardadas: {useStore.getState().lists.length}</p>
+      <section className="rounded-xl border border-border bg-white shadow-sm">
+        <div className="px-4 py-3 border-b border-border">
+          <h3 className="font-medium text-text">Información</h3>
+        </div>
+        <div className="p-4 space-y-2">
+          <p className="text-sm text-text-muted">Productos guardados: <span className="font-medium text-text">{Object.keys(products).length}</span></p>
+          <p className="text-sm text-text-muted">Listas guardadas: <span className="font-medium text-text">{useStore.getState().lists.length}</span></p>
+        </div>
       </section>
     </div>
   )
@@ -729,14 +852,28 @@ function Autocomplete({
   const [open, setOpen] = useState(false)
   const [highlighted, setHighlighted] = useState(0)
   const inputRef = useRef<HTMLInputElement>(null)
+  const dropdownRef = useRef<HTMLUListElement>(null)
   const filtered = options.filter((o) => o.toLowerCase().includes(value.toLowerCase()))
 
   useEffect(() => {
     const onMouseDown = (e: MouseEvent) => {
-      if (inputRef.current && !inputRef.current.contains(e.target as Node)) setOpen(false)
+      if (inputRef.current && !inputRef.current.contains(e.target as Node) &&
+          dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setOpen(false)
+      }
+    }
+    const onTouchStart = (e: TouchEvent) => {
+      if (inputRef.current && !inputRef.current.contains(e.target as Node) &&
+          dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setOpen(false)
+      }
     }
     document.addEventListener('mousedown', onMouseDown)
-    return () => document.removeEventListener('mousedown', onMouseDown)
+    document.addEventListener('touchstart', onTouchStart, { passive: true })
+    return () => {
+      document.removeEventListener('mousedown', onMouseDown)
+      document.removeEventListener('touchstart', onTouchStart)
+    }
   }, [])
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -750,20 +887,36 @@ function Autocomplete({
     else if (e.key === 'Escape') { setOpen(false) }
   }
 
+  const handlePointerDown = (e: React.PointerEvent) => {
+    e.stopPropagation()
+  }
+
   return (
-    <div className={cn('relative', className)} onClick={() => setOpen(true)}>
+    <div className={cn('relative', className)}>
       <Input
         ref={inputRef}
         placeholder={placeholder}
         value={value}
         onChange={(e) => { onChange(e.target.value); setOpen(true); setHighlighted(0) }}
         onKeyDown={handleKeyDown}
+        onFocus={() => { setOpen(true); setHighlighted(0) }}
         autoComplete="off"
       />
       {open && filtered.length && (
-        <ul className="absolute z-10 w-full mt-1 rounded border border-gray-300 bg-white shadow-md max-h-48 overflow-auto">
+        <ul
+          ref={dropdownRef}
+          className="absolute z-50 w-full mt-1 rounded-lg border border-border bg-white shadow-lg max-h-60 overflow-auto scrollbar-thin"
+          onPointerDown={handlePointerDown}
+        >
           {filtered.map((opt, i) => (
-            <li key={opt} className={cn('px-2 py-1.5 cursor-pointer', i === highlighted ? 'bg-gray-100' : '')} onMouseDown={(e) => { e.preventDefault(); onChange(opt); onSelect?.(opt); setOpen(false) }}>{opt}</li>
+            <li
+              key={opt}
+              className={cn('px-4 py-3 cursor-pointer', i === highlighted ? 'bg-primary-light' : 'hover:bg-gray-50')}
+              onMouseDown={(e) => { e.preventDefault(); onChange(opt); onSelect?.(opt); setOpen(false) }}
+              onTouchEnd={(e) => { e.preventDefault(); onChange(opt); onSelect?.(opt); setOpen(false) }}
+            >
+              {opt}
+            </li>
           ))}
         </ul>
       )}
@@ -772,7 +925,11 @@ function Autocomplete({
 }
 
 function Empty({ text }: { text: string }) {
-  return <p className="rounded border border-dashed p-6 text-center text-gray-500">{text}</p>
+  return (
+    <div className="rounded-xl border border-border bg-white shadow-sm py-12 text-center">
+      <p className="text-text-muted">{text}</p>
+    </div>
+  )
 }
 
 const uid = () => `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`
