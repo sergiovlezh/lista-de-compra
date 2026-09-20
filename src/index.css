@@ -305,16 +305,7 @@
   border-radius: inherit;
 }
 
-/* Scanner overlay - dark background with rectangular cutout */
-.scanner-overlay {
-  position: absolute;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.5);
-  pointer-events: none;
-  z-index: 10;
-}
-
-/* Cutout - clear window showing camera feed normally */
+/* Scanner cutout - border frame only, no dark overlay */
 .scanner-cutout {
   position: absolute;
   top: 50%;
@@ -324,12 +315,8 @@
   aspect-ratio: 16 / 10;
   border: 3px solid var(--color-primary);
   border-radius: 8px;
-  /* Dark overlay everywhere EXCEPT the cutout */
-  box-shadow: 
-    0 0 0 9999px rgba(0, 0, 0, 0.5),
-    0 0 20px rgba(45, 106, 79, 0.3);
   pointer-events: none;
-  z-index: 15;
+  z-index: 10;
 }
 
 /* Corner accents */

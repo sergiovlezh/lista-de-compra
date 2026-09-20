@@ -535,7 +535,6 @@ function Scanner() {
         <div id="reader" className="w-full aspect-video bg-black relative overflow-hidden rounded-xl border border-border" style={{ minHeight: '300px', maxHeight: '50vh' }}>
           {started && (
             <>
-              <div className="scanner-overlay" />
               <div className="scanner-cutout">
                 <div className="scanner-line" />
               </div>
