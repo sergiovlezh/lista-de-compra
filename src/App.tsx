@@ -426,7 +426,7 @@ function Scanner() {
       setStarted(true)
       await qr.start(
         { facingMode: 'environment' },
-        { fps: 10, qrbox: { width: 250, height: 250 } },
+        { fps: 10, qrbox: { width: 300, height: 300 } },
         (code) => {
           if (scannedRef.current === code) return
           scannedRef.current = code
@@ -484,8 +484,8 @@ function Scanner() {
 
   return (
     <div className="space-y-4">
-      <div className="space-y-4">
-        <div id="reader" className="w-full aspect-video bg-black relative overflow-hidden rounded-xl border border-border" style={{ minHeight: '300px' }} />
+      <div className="space-y-4 max-w-md mx-auto">
+        <div id="reader" className="w-full aspect-video bg-black relative overflow-hidden rounded-xl border border-border" style={{ minHeight: '300px', maxHeight: '50vh' }} />
         {!started ? (
           <div className="rounded-xl border border-border bg-white shadow-sm">
             <div className="p-6 space-y-4 text-center">
