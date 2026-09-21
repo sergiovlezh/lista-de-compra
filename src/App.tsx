@@ -315,9 +315,10 @@ function Detail() {
 
   if (!list) return <Empty text="Lista no encontrada." />
 
-  // ponytail: finished blocks adds; reviewed freezes everything but the state dropdown
+  // ponytail: finished blocks adds and deletes; reviewed freezes everything but the state dropdown
   const locked = list.state === 'reviewed'
   const noAdd = locked || list.state === 'finished'
+  const noDelete = noAdd
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -512,7 +513,7 @@ function Detail() {
                     <Button variant="ghost" size="icon" onClick={() => { if (!locked) openEdit(i) }} aria-label="Editar" disabled={locked}>
                       <Pencil className="h-5 w-5" />
                     </Button>
-                    <Button variant="ghost" size="icon" onClick={() => { if (!locked) { setDeleteConfirmItemId(i.id); setShowDeleteConfirm(true) } }} aria-label="Eliminar" disabled={locked}>
+                    <Button variant="ghost" size="icon" onClick={() => { if (!noDelete) { setDeleteConfirmItemId(i.id); setShowDeleteConfirm(true) } }} aria-label="Eliminar" disabled={noDelete}>
                       <Trash2 className="h-5 w-5 text-destructive" />
                     </Button>
                   </div>
