@@ -13,6 +13,9 @@ export interface State {
   updateList: (id: string, patch: Partial<Pick<StoreList, 'store' | 'date' | 'note' | 'state'>>) => void
   addItem: (listId: string, item: Omit<Item, 'id' | 'checked' | 'qty'>) => void
   updateItemQty: (listId: string, itemId: string, qty: number) => void
+  updateItem: (listId: string, itemId: string, patch: Partial<Pick<Item, 'name' | 'price'>>) => void
+  renameProduct: (barcode: string, name: string) => void
+  checkItem: (listId: string, itemId: string) => void
   toggleItem: (listId: string, itemId: string) => void
   removeItem: (listId: string, itemId: string) => void
   rememberProduct: (barcode: string, memory: ProductMemory) => void
@@ -100,6 +103,19 @@ export const useStore = create<State>()(
               : l,
           ),
         })),
+      checkItem: (listId, itemId) =>
+        set((s) => ({
+          lists: s.lists.map((l) =>
+            l.id === listId
+              ? {
+                  ...l,
+                  items: l.items.map((i) =>
+                    i.id === itemId ? { ...i, checked: true } : i,
+                  ),
+                }
+              : l,
+          ),
+        })),
       removeItem: (listId, itemId) =>
         set((s) => ({
           lists: s.lists.map((l) =>
@@ -108,19 +124,65 @@ export const useStore = create<State>()(
               : l,
           ),
         })),
+      // ponytail: fractions allowed, 2-decimal rounding, 0/NaN handled by delete modal in UI
       updateItemQty: (listId, itemId, qty) =>
-        set((s) => ({
-          lists: s.lists.map((l) =>
-            l.id === listId
-              ? {
-                  ...l,
-                  items: l.items.map((i) =>
-                    i.id === itemId ? { ...i, qty: Math.max(1, qty) } : i,
-                  ),
-                }
-              : l,
-          ),
-        })),
+        set((s) => {
+          if (!Number.isFinite(qty)) return {}
+          const rounded = Math.round(qty * 100) / 100
+          if (rounded <= 0) return {}
+          return {
+            lists: s.lists.map((l) =>
+              l.id === listId
+                ? {
+                    ...l,
+                    items: l.items.map((i) =>
+                      i.id === itemId ? { ...i, qty: rounded } : i,
+                    ),
+                  }
+                : l,
+            ),
+          }
+        }),
+      // ponytail: row-only edit; catalog sync is explicit via renameProduct/updateProduct
+      updateItem: (listId, itemId, patch) =>
+        set((s) => {
+          const name = patch.name !== undefined ? patch.name.trim() : undefined
+          const price =
+            patch.price !== undefined && Number.isFinite(patch.price)
+              ? Math.round((patch.price as number) * 100) / 100
+              : undefined
+          if (name !== undefined && !name) return {}
+          if (name === undefined && price === undefined) return {}
+          return {
+            lists: s.lists.map((l) =>
+              l.id === listId
+                ? {
+                    ...l,
+                    items: l.items.map((i) =>
+                      i.id === itemId
+                        ? { ...i, ...(name !== undefined ? { name } : {}), ...(price !== undefined ? { price } : {}) }
+                        : i,
+                    ),
+                  }
+                : l,
+            ),
+          }
+        }),
+      // ponytail: name change propagates to catalog + every row with that barcode; prices elsewhere untouched
+      renameProduct: (barcode, name) =>
+        set((s) => {
+          const trimmed = name.trim()
+          if (!barcode || !trimmed) return {}
+          return {
+            products: s.products[barcode]
+              ? { ...s.products, [barcode]: { ...s.products[barcode], name: trimmed, updatedAt: Date.now() } }
+              : s.products,
+            lists: s.lists.map((l) => ({
+              ...l,
+              items: l.items.map((i) => (i.barcode === barcode ? { ...i, name: trimmed } : i)),
+            })),
+          }
+        }),
       rememberProduct: (barcode, memory) =>
         set((s) => ({ products: { ...s.products, [barcode]: memory } })),
       updateProduct: (barcode, memory) =>

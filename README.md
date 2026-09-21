@@ -1,4 +1,4 @@
-# lista-de-compra
+# Lista de Compra
 
 A shopping list tracker for one person, in the browser. Create lists per store, scan barcodes from your phone to add items, group multiple store visits into one shopping trip ("compra de mercado").
 
@@ -11,16 +11,19 @@ A shopping list tracker for one person, in the browser. Create lists per store, 
 ## Features
 
 - **Multiple lists per store** — each list belongs to a store because barcodes and prices can differ.
-- **List states** — track lists as *Preparando* (at home), *Comprando* (at store), or *Revisado* (done).
+- **List states** — track lists as *Preparando* (at home), *Comprando* (at store), *Finalizado* (paid/finishing), or *Revisado* (verified). State cycle button removed from overview; change state only from inside the list.
+- **Add by state** — products can only be added in Preparando or Comprando. Finalizado shows notice; Revisado is fully read-only.
+- **Smart scan in Comprando** — scanning a product already in the list marks it checked; new products add normally. Preparando keeps +1 behavior.
 - **Filter lists** — filter by state and date to find past shopping trips.
 - **Product catalog** — view all saved products, edit name/price/barcode, scan new barcodes.
 - **Smart deduplication** — adding the same product (by barcode or exact name) increments quantity instead of creating duplicates.
-- **Quantity controls** — increment/decrement item quantity inline; removing last item shows confirmation modal.
+- **Quantity controls** — increment/decrement item quantity inline (decrement at 1 asks to delete); tap the amount to type fractions like 0.5. Removing last item shows confirmation modal.
 - **Item totals** — see unit price × quantity for each line item.
-- **Barcode scanning** — point your phone at a product, the app matches it to your stored products and adds it to the current list. Camera starts immediately on scan button click.
+- **Edit items in list** — pencil button edits name and price; renames sync to catalog and all lists, price asks list-only vs new catalog price.
+- **Barcode scanning** — point your phone at a product, the app matches it to your stored products and adds it to the current list. Camera starts immediately on scan button click. Zoom slider appears when the device supports hardware zoom.
 - **Price history** — each product carries an `updatedAt`. When you scan and the price has changed, the app asks you whether to update.
 - **Import/Export** — import products or lists from JSON/CSV, export products only or everything (products + lists) as JSON/CSV.
-- **Direct URLs** — React Router enables deep linking to specific lists, products, or settings.
+- **Direct URLs** — React Router enables deep linking to home, lists, products, or settings.
 - **Offline by design** — everything lives in your browser's `localStorage`. No account, no server, no sync (yet).
 
 ---
