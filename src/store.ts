@@ -109,18 +109,24 @@ export const useStore = create<State>()(
           ),
         })),
       updateItemQty: (listId, itemId, qty) =>
-        set((s) => ({
-          lists: s.lists.map((l) =>
-            l.id === listId
-              ? {
-                  ...l,
-                  items: l.items.map((i) =>
-                    i.id === itemId ? { ...i, qty: Math.max(1, qty) } : i,
-                  ),
-                }
-              : l,
-          ),
-        })),
+        set((s) => {
+          // ponytail: fractions allowed, 2-decimal rounding, 0/NaN handled by delete modal in UI
+          if (!Number.isFinite(qty)) return {}
+          const rounded = Math.round(qty * 100) / 100
+          if (rounded <= 0) return {}
+          return {
+            lists: s.lists.map((l) =>
+              l.id === listId
+                ? {
+                    ...l,
+                    items: l.items.map((i) =>
+                      i.id === itemId ? { ...i, qty: rounded } : i,
+                    ),
+                  }
+                : l,
+            ),
+          }
+        }),
       rememberProduct: (barcode, memory) =>
         set((s) => ({ products: { ...s.products, [barcode]: memory } })),
       updateProduct: (barcode, memory) =>
