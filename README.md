@@ -1,4 +1,4 @@
-# lista-de-compra
+# Lista de Compra
 
 A shopping list tracker for one person, in the browser. Create lists per store, scan barcodes from your phone to add items, group multiple store visits into one shopping trip ("compra de mercado").
 
@@ -20,7 +20,7 @@ A shopping list tracker for one person, in the browser. Create lists per store, 
 - **Barcode scanning** — point your phone at a product, the app matches it to your stored products and adds it to the current list. Camera starts immediately on scan button click. Zoom slider appears when the device supports hardware zoom.
 - **Price history** — each product carries an `updatedAt`. When you scan and the price has changed, the app asks you whether to update.
 - **Import/Export** — import products or lists from JSON/CSV, export products only or everything (products + lists) as JSON/CSV.
-- **Direct URLs** — React Router enables deep linking to specific lists, products, or settings.
+- **Direct URLs** — React Router enables deep linking to home, lists, products, or settings.
 - **Offline by design** — everything lives in your browser's `localStorage`. No account, no server, no sync (yet).
 
 ---

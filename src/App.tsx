@@ -34,7 +34,8 @@ export default function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<Layout />}>
-          <Route index element={<Lists />} />
+          <Route index element={<Home />} />
+          <Route path="lists" element={<Lists />} />
           <Route path="lists/:listId" element={<Detail />} />
           <Route path="lists/:listId/scanner" element={<ListScanner />} />
           <Route path="products" element={<Products />} />
@@ -55,9 +56,9 @@ function Layout() {
   return (
     <main className="min-h-screen bg-background safe-area-inset-bottom safe-area-inset-top">
       <header className={pageHeader}>
-        <h1 className="text-lg font-semibold text-text">lista-de-compra</h1>
+        <Link to="/" className="text-lg font-semibold text-text">Lista de Compra</Link>
         <nav className="flex gap-1">
-          <Link to="/" className={navLink}>Listas</Link>
+          <Link to="/lists" className={navLink}>Listas</Link>
           <Link to="/products" className={navLink}>Productos</Link>
           <Link to="/settings" className={navLink}>Ajustes</Link>
         </nav>
@@ -71,6 +72,101 @@ function Layout() {
         <Outlet />
       </div>
     </main>
+  )
+}
+
+// ponytail: Home lives here until a second view earns src/views/
+function Home() {
+  const lists = useStore((s: State) => s.lists)
+  const createList = useStore((s: State) => s.createList)
+  const navigate = useNavigate()
+  const [store, setStore] = useState('')
+  const today = new Date().toISOString().slice(0, 10)
+  const [date, setDate] = useState(today)
+
+  const byDateDesc = [...lists].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+  const shopping = byDateDesc.filter((l) => l.state === 'shopping')
+  const recent = byDateDesc.slice(0, 5)
+
+  return (
+    <div className="space-y-4">
+      <section className="rounded-xl border border-border bg-white shadow-sm">
+        <div className="px-4 py-3 border-b border-border">
+          <h2 className="font-medium text-text">Nueva lista</h2>
+        </div>
+        <div className="p-4">
+          <form
+            className="flex flex-col gap-3"
+            onSubmit={(e) => {
+              e.preventDefault()
+              const id = createList(store.trim() || 'Sin tienda', date)
+              navigate(`/lists/${id}`)
+            }}
+          >
+            <div className="flex-1">
+              <Label htmlFor="home-list-store" className="block text-sm font-medium text-text mb-1.5">Tienda</Label>
+              <Input id="home-list-store" placeholder="Ej: Mercadona" value={store} onChange={(e) => setStore(e.target.value)} />
+            </div>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <div className="w-full sm:w-[160px]">
+                <Label htmlFor="home-list-date" className="block text-sm font-medium text-text mb-1.5">Fecha</Label>
+                <Input id="home-list-date" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+              </div>
+              <Button type="submit" className="btn-primary btn-block btn-lg sm:self-end sm:w-auto" style={{ minWidth: '140px' }}>+ Crear</Button>
+            </div>
+          </form>
+        </div>
+      </section>
+
+      {shopping.length > 0 && (
+        <section className="space-y-3">
+          <h2 className="font-medium text-text">En compra ahora</h2>
+          <ul className="rounded-xl border border-border bg-white shadow-sm divide-y divide-border">
+            {shopping.map((l) => (
+              <HomeListRow key={l.id} list={l} />
+            ))}
+          </ul>
+        </section>
+      )}
+
+      <section className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="font-medium text-text">Recientes</h2>
+          {lists.length > 5 && (
+            <Link to="/lists" className={navLink}>Ver todas</Link>
+          )}
+        </div>
+        {recent.length === 0 ? (
+          <div className="rounded-xl border border-border bg-white shadow-sm py-12 text-center">
+            <p className="text-text-muted">Sin listas todavía. Crea la primera arriba.</p>
+          </div>
+        ) : (
+          <ul className="rounded-xl border border-border bg-white shadow-sm divide-y divide-border">
+            {recent.map((l) => (
+              <HomeListRow key={l.id} list={l} />
+            ))}
+          </ul>
+        )}
+      </section>
+    </div>
+  )
+}
+
+function HomeListRow({ list: l }: { list: StoreList }) {
+  return (
+    <li>
+      <Link to={`/lists/${l.id}`} className="flex items-center justify-between gap-2 p-4 border-b border-border last:border-0">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="font-medium truncate text-text">{l.store || 'Sin tienda'}</span>
+            <Badge variant={stateColors[l.state]}>{stateLabels[l.state]}</Badge>
+          </div>
+          <div className="text-sm text-text-muted mt-1">
+            {l.date} · {l.items.filter((i) => i.checked).length}/{l.items.length} · ${listTotal(l).toFixed(2)}
+          </div>
+        </div>
+      </Link>
+    </li>
   )
 }
 
@@ -290,7 +386,7 @@ function Detail() {
             </Select>
           </div>
         </div>
-        <Button variant="ghost" size="icon" onClick={() => navigate('/')} aria-label="Volver">
+        <Button variant="ghost" size="icon" onClick={() => navigate('/lists')} aria-label="Volver">
           <ArrowLeft className="h-5 w-5" />
         </Button>
       </div>
@@ -389,7 +485,7 @@ function Detail() {
         </DialogContent>
       </Dialog>
 
-      <Button variant="outline" onClick={() => { if (confirm('¿Eliminar esta lista?')) { deleteList(listId!); navigate('/') } }} className="btn-block btn-lg">
+      <Button variant="outline" onClick={() => { if (confirm('¿Eliminar esta lista?')) { deleteList(listId!); navigate('/lists') } }} className="btn-block btn-lg">
         <Trash2 className="h-5 w-5 mr-2" /> Eliminar lista
       </Button>
     </div>
