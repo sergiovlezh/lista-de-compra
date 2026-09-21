@@ -12,7 +12,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Separator } from '@/components/ui/separator'
 import { Badge } from '@/components/ui/badge'
-import { Trash2, Camera, Plus, Minus, X, RotateCcw, ArrowLeft } from 'lucide-react'
+import { Trash2, Camera, Plus, Minus, X, RotateCcw, ArrowLeft, Pencil } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const stateLabels: Record<ListState, string> = {
@@ -301,6 +301,9 @@ function Detail() {
   const deleteList = useStore((s: State) => s.deleteList)
   const addItem = useStore((s: State) => s.addItem)
   const updateItemQty = useStore((s: State) => s.updateItemQty)
+  const updateItem = useStore((s: State) => s.updateItem)
+  const renameProduct = useStore((s: State) => s.renameProduct)
+  const updateProduct = useStore((s: State) => s.updateProduct)
   const toggleItem = useStore((s: State) => s.toggleItem)
   const removeItem = useStore((s: State) => s.removeItem)
   const products = useStore((s: State) => s.products)
@@ -309,6 +312,10 @@ function Detail() {
   const [price, setPrice] = useState('')
   const [deleteConfirmItemId, setDeleteConfirmItemId] = useState<string | null>(null)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [editItemId, setEditItemId] = useState<string | null>(null)
+  const [editName, setEditName] = useState('')
+  const [editPrice, setEditPrice] = useState('')
+  const [pendingPrice, setPendingPrice] = useState<number | null>(null)
   const productNames = Object.values(products).map((p: ProductMemory) => p.name).filter(Boolean)
 
   if (!list) return <Empty text="Lista no encontrada." />
@@ -359,6 +366,63 @@ function Detail() {
     setShowDeleteConfirm(false)
     setDeleteConfirmItemId(null)
   }
+
+  const openEdit = (item: Item) => {
+    setEditItemId(item.id)
+    setEditName(item.name)
+    setEditPrice(item.price.toString())
+    setPendingPrice(null)
+  }
+
+  const closeEdit = () => {
+    setEditItemId(null)
+    setPendingPrice(null)
+  }
+
+  // ponytail: name → catalog + all rows; price → this row, catalog only if user picks it
+  const saveEdit = () => {
+    const item = list.items.find((i) => i.id === editItemId)
+    const newName = editName.trim()
+    if (!item || !newName) return
+    const parsed = parseFloat(editPrice.replace(',', '.'))
+    const rounded = Number.isFinite(parsed) ? Math.round(parsed * 100) / 100 : null
+    const priceChanged = rounded !== null && rounded !== item.price
+    if (newName !== item.name) {
+      if (item.barcode) renameProduct(item.barcode, newName)
+      else updateItem(listId!, item.id, { name: newName })
+    }
+    if (!priceChanged || rounded === null) {
+      closeEdit()
+      return
+    }
+    if (!item.barcode) {
+      updateItem(listId!, item.id, { price: rounded })
+      closeEdit()
+      return
+    }
+    // ponytail: price already matches catalog → row-only, no scope question
+    if (rounded === products[item.barcode]?.price) {
+      updateItem(listId!, item.id, { price: rounded })
+      closeEdit()
+      return
+    }
+    setPendingPrice(rounded)
+  }
+
+  const confirmPriceScope = (toCatalog: boolean) => {
+    const item = list.items.find((i) => i.id === editItemId)
+    if (item && pendingPrice !== null) {
+      updateItem(listId!, item.id, { price: pendingPrice })
+      if (toCatalog && item.barcode) updateProduct(item.barcode, { price: pendingPrice })
+    }
+    closeEdit()
+  }
+
+  // ponytail: pull catalog price into this row; save skips scope when it matches catalog
+  const editItem = list.items.find((i) => i.id === editItemId)
+  const catalogPrice = editItem?.barcode ? products[editItem.barcode]?.price : undefined
+  const showSyncPrice = editItem?.barcode !== undefined && editItem?.barcode !== '' &&
+    catalogPrice !== undefined && catalogPrice !== editItem?.price
 
   return (
     <div className="space-y-4">
@@ -440,9 +504,14 @@ function Detail() {
                     <div className={cn('font-medium truncate', i.checked ? 'line-through text-gray-400' : 'text-text')}>{i.name}</div>
                     {i.barcode && <div className="text-xs text-gray-500 truncate">{i.barcode}</div>}
                   </div>
-                  <Button variant="ghost" size="icon" className="sm:col-start-6" onClick={() => { setDeleteConfirmItemId(i.id); setShowDeleteConfirm(true) }} aria-label="Eliminar">
-                    <Trash2 className="h-5 w-5 text-destructive" />
-                  </Button>
+                  <div className="flex items-center gap-1 sm:col-start-6">
+                    <Button variant="ghost" size="icon" onClick={() => openEdit(i)} aria-label="Editar">
+                      <Pencil className="h-5 w-5" />
+                    </Button>
+                    <Button variant="ghost" size="icon" onClick={() => { setDeleteConfirmItemId(i.id); setShowDeleteConfirm(true) }} aria-label="Eliminar">
+                      <Trash2 className="h-5 w-5 text-destructive" />
+                    </Button>
+                  </div>
                 </div>
                 <div className="mt-1 flex items-center gap-2 pl-7 sm:contents">
                   <div className="flex items-center justify-center gap-1 w-20">
@@ -481,6 +550,47 @@ function Detail() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowDeleteConfirm(false)}>Cancelar</Button>
             <Button variant="destructive" onClick={confirmDelete}>Eliminar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={editItemId !== null && pendingPrice === null} onOpenChange={(open) => { if (!open) closeEdit() }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Editar producto</DialogTitle>
+            <DialogDescription>El nombre se actualiza en el catálogo y en todas las listas. Si cambia el precio, te preguntamos dónde aplicarlo.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label htmlFor="edit-item-name">Nombre</Label>
+              <Input id="edit-item-name" value={editName} onChange={(e) => setEditName(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-item-price">Precio</Label>
+              <Input id="edit-item-price" inputMode="decimal" value={editPrice} onChange={(e) => setEditPrice(e.target.value)} />
+              {showSyncPrice && (
+                <Button variant="outline" size="sm" onClick={() => setEditPrice(String(catalogPrice))}>
+                  <RotateCcw className="h-4 w-4 mr-1" /> Usar precio del catálogo (${catalogPrice?.toFixed(2)})
+                </Button>
+              )}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={closeEdit}>Cancelar</Button>
+            <Button className="btn-primary" onClick={saveEdit} disabled={!editName.trim()}>Guardar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={pendingPrice !== null} onOpenChange={(open) => { if (!open) closeEdit() }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>¿Dónde aplicar el precio?</DialogTitle>
+            <DialogDescription>Elige si el nuevo precio (${pendingPrice?.toFixed(2)}) queda solo en este item o también se vuelve el precio del producto en el catálogo. Las otras listas no cambian.</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => confirmPriceScope(false)}>Solo en esta lista</Button>
+            <Button className="btn-primary" onClick={() => confirmPriceScope(true)}>Nuevo precio del producto</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
