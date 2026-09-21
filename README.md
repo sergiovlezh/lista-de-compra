@@ -15,7 +15,7 @@ A shopping list tracker for one person, in the browser. Create lists per store, 
 - **Filter lists** — filter by state and date to find past shopping trips.
 - **Product catalog** — view all saved products, edit name/price/barcode, scan new barcodes.
 - **Smart deduplication** — adding the same product (by barcode or exact name) increments quantity instead of creating duplicates.
-- **Quantity controls** — increment/decrement item quantity inline; removing last item shows confirmation modal.
+- **Quantity controls** — increment/decrement item quantity inline (decrement at 1 asks to delete); tap the amount to type fractions like 0.5. Removing last item shows confirmation modal.
 - **Item totals** — see unit price × quantity for each line item.
 - **Barcode scanning** — point your phone at a product, the app matches it to your stored products and adds it to the current list. Camera starts immediately on scan button click. Zoom slider appears when the device supports hardware zoom.
 - **Price history** — each product carries an `updatedAt`. When you scan and the price has changed, the app asks you whether to update.

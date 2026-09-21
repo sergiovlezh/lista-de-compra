@@ -248,11 +248,11 @@ function Detail() {
   }
 
   const handleQtyChange = (itemId: string, newQty: number) => {
-    if (newQty < 1) {
+    if (!Number.isFinite(newQty) || newQty <= 0) {
       setDeleteConfirmItemId(itemId)
       setShowDeleteConfirm(true)
     } else {
-      updateItemQty(listId!, itemId, newQty)
+      updateItemQty(listId!, itemId, Math.round(newQty * 100) / 100)
     }
   }
 
@@ -350,10 +350,10 @@ function Detail() {
                 </div>
                 <div className="mt-1 flex items-center gap-2 pl-7 sm:contents">
                   <div className="flex items-center justify-center gap-1 w-20">
-                    <Button variant="ghost" size="icon" onClick={() => handleQtyChange(i.id, i.qty - 1)} disabled={i.qty <= 1} aria-label="Decrementar">
+                    <Button variant="ghost" size="icon" onClick={() => handleQtyChange(i.id, i.qty - 1)} aria-label="Decrementar">
                       <Minus className="h-5 w-5" />
                     </Button>
-                    <span className="w-10 text-center font-medium text-text">{i.qty}</span>
+                    <QtyInput value={i.qty} onCommit={(v) => handleQtyChange(i.id, v)} />
                     <Button variant="ghost" size="icon" onClick={() => handleQtyChange(i.id, i.qty + 1)} aria-label="Incrementar">
                       <Plus className="h-5 w-5" />
                     </Button>
@@ -804,6 +804,47 @@ function Autocomplete({
         </ul>
       )}
     </div>
+  )
+}
+
+// ponytail: commit on blur/Enter so typing "0.5" never trips the delete modal mid-keystroke
+function QtyInput({ value, onCommit }: { value: number; onCommit: (v: number) => void }) {
+  const [text, setText] = useState(String(value))
+  const [focused, setFocused] = useState(false)
+
+  useEffect(() => {
+    if (!focused) setText(String(value))
+  }, [value, focused])
+
+  const commit = () => {
+    const v = parseFloat(text.replace(',', '.'))
+    if (!Number.isFinite(v)) {
+      setText(String(value))
+      return
+    }
+    onCommit(Math.round(v * 100) / 100)
+  }
+
+  return (
+    <Input
+      value={text}
+      inputMode="decimal"
+      aria-label="Cantidad"
+      className="w-14 text-center px-1"
+      onChange={(e) => setText(e.target.value)}
+      onFocus={() => setFocused(true)}
+      onBlur={() => {
+        setFocused(false)
+        commit()
+      }}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') (e.target as HTMLInputElement).blur()
+        else if (e.key === 'Escape') {
+          setText(String(value))
+          ;(e.target as HTMLInputElement).blur()
+        }
+      }}
+    />
   )
 }
 
