@@ -1,4 +1,4 @@
-export type ListState = 'preparing' | 'shopping' | 'reviewed'
+export type ListState = 'preparing' | 'shopping' | 'finished' | 'reviewed'
 
 export interface Item {
   id: string
