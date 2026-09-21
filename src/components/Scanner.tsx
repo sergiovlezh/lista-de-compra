@@ -63,6 +63,8 @@ export function Scanner({
 }) {
   const [started, setStarted] = useState(false)
   const [error, setError] = useState('')
+  // ponytail: native range + hardware zoom only, hidden when unsupported
+  const [zoom, setZoom] = useState<{ min: number; max: number; step: number; value: number } | null>(null)
   const scannerRef = useRef<Html5Qrcode | null>(null)
   const scannedRef = useRef('')
   const audioContextRef = useRef<AudioContext | null>(null)
@@ -74,8 +76,14 @@ export function Scanner({
     [],
   )
 
+  const setZoomValue = (v: number) => {
+    setZoom((prev) => (prev ? { ...prev, value: v } : prev))
+    scannerRef.current?.applyVideoConstraints({ advanced: [{ zoom: v } as MediaTrackConstraintSet] }).catch(() => {})
+  }
+
   const start = async () => {
     setError('')
+    setZoom(null)
     try {
       audioContextRef.current = await unlockAudio()
       const qr = new Html5Qrcode(elementId, { formatsToSupport: FORMATS, verbose: false })
@@ -91,12 +99,24 @@ export function Scanner({
           playBeep(audioContextRef.current)
           stopScanner(scannerRef)
           setStarted(false)
+          setZoom(null)
           onScan(code)
         },
         () => {},
       )
+      try {
+        const caps = qr.getRunningTrackCapabilities()
+        const z = (caps as unknown as { zoom?: { min?: number; max?: number; step?: number } }).zoom
+        if (z && typeof z.min === 'number' && typeof z.max === 'number' && z.max > 1) {
+          const settings = qr.getRunningTrackSettings() as MediaTrackSettings & { zoom?: number }
+          setZoom({ min: z.min, max: z.max, step: z.step ?? 0.1, value: typeof settings.zoom === 'number' ? settings.zoom : z.min })
+        }
+      } catch {
+        setZoom(null)
+      }
     } catch {
       scannerRef.current = null
+      setZoom(null)
       setError('Sin cámara. Revisa permisos o usa entrada manual.')
       setStarted(false)
     }
@@ -105,6 +125,7 @@ export function Scanner({
   const stop = () => {
     stopScanner(scannerRef)
     setStarted(false)
+    setZoom(null)
     onStop()
   }
 
@@ -130,6 +151,23 @@ export function Scanner({
               Iniciar escáner
             </button>
             {error && <p className="text-sm text-red-400 mt-4">{error}</p>}
+          </div>
+        )}
+        {started && zoom && (
+          <div className="absolute bottom-0 inset-x-0 px-4 py-2 bg-black/60">
+            <label htmlFor={`${elementId}-zoom`} className="block text-xs text-white/80 mb-1">
+              Zoom {zoom.value.toFixed(1)}x
+            </label>
+            <input
+              id={`${elementId}-zoom`}
+              type="range"
+              min={zoom.min}
+              max={zoom.max}
+              step={zoom.step}
+              value={zoom.value}
+              onChange={(e) => setZoomValue(parseFloat(e.target.value))}
+              className="w-full touch-manipulation"
+            />
           </div>
         )}
       </div>
