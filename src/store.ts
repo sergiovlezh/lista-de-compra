@@ -15,6 +15,7 @@ export interface State {
   updateItemQty: (listId: string, itemId: string, qty: number) => void
   updateItem: (listId: string, itemId: string, patch: Partial<Pick<Item, 'name' | 'price'>>) => void
   renameProduct: (barcode: string, name: string) => void
+  checkItem: (listId: string, itemId: string) => void
   toggleItem: (listId: string, itemId: string) => void
   removeItem: (listId: string, itemId: string) => void
   rememberProduct: (barcode: string, memory: ProductMemory) => void
@@ -97,6 +98,19 @@ export const useStore = create<State>()(
                   ...l,
                   items: l.items.map((i) =>
                     i.id === itemId ? { ...i, checked: !i.checked } : i,
+                  ),
+                }
+              : l,
+          ),
+        })),
+      checkItem: (listId, itemId) =>
+        set((s) => ({
+          lists: s.lists.map((l) =>
+            l.id === listId
+              ? {
+                  ...l,
+                  items: l.items.map((i) =>
+                    i.id === itemId ? { ...i, checked: true } : i,
                   ),
                 }
               : l,

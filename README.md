@@ -11,7 +11,9 @@ A shopping list tracker for one person, in the browser. Create lists per store, 
 ## Features
 
 - **Multiple lists per store** — each list belongs to a store because barcodes and prices can differ.
-- **List states** — track lists as *Preparando* (at home), *Comprando* (at store), or *Revisado* (done).
+- **List states** — track lists as *Preparando* (at home), *Comprando* (at store), *Finalizado* (paid/finishing), or *Revisado* (verified). State cycle button removed from overview; change state only from inside the list.
+- **Add by state** — products can only be added in Preparando or Comprando. Finalizado shows notice; Revisado is fully read-only.
+- **Smart scan in Comprando** — scanning a product already in the list marks it checked; new products add normally. Preparando keeps +1 behavior.
 - **Filter lists** — filter by state and date to find past shopping trips.
 - **Product catalog** — view all saved products, edit name/price/barcode, scan new barcodes.
 - **Smart deduplication** — adding the same product (by barcode or exact name) increments quantity instead of creating duplicates.

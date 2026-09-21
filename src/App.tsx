@@ -18,11 +18,13 @@ import { cn } from '@/lib/utils'
 const stateLabels: Record<ListState, string> = {
   preparing: 'Preparando',
   shopping: 'Comprando',
+  finished: 'Finalizado',
   reviewed: 'Revisado',
 }
 const stateColors: Record<ListState, 'default' | 'secondary' | 'success' | 'warning' | 'destructive'> = {
   preparing: 'default',
   shopping: 'warning',
+  finished: 'secondary',
   reviewed: 'success',
 }
 
@@ -173,12 +175,11 @@ function HomeListRow({ list: l }: { list: StoreList }) {
 function Lists() {
   const lists = useStore((s: State) => s.lists)
   const createList = useStore((s: State) => s.createList)
-  const updateList = useStore((s: State) => s.updateList)
   const deleteList = useStore((s: State) => s.deleteList)
   const [store, setStore] = useState('')
-  const [filterState, setFilterStateRaw] = useState<'preparing' | 'shopping' | 'reviewed' | 'all'>('all')
+  const [filterState, setFilterStateRaw] = useState<'preparing' | 'shopping' | 'finished' | 'reviewed' | 'all'>('all')
   const setFilterState = (value: string) => {
-    setFilterStateRaw(value as 'preparing' | 'shopping' | 'reviewed' | 'all')
+    setFilterStateRaw(value as 'preparing' | 'shopping' | 'finished' | 'reviewed' | 'all')
   }
   const [filterDate, setFilterDate] = useState('')
   const today = new Date().toISOString().slice(0, 10)
@@ -235,6 +236,7 @@ function Lists() {
                 <SelectItem value="all">Todos</SelectItem>
                 <SelectItem value="preparing">Preparando</SelectItem>
                 <SelectItem value="shopping">Comprando</SelectItem>
+                <SelectItem value="finished">Finalizado</SelectItem>
                 <SelectItem value="reviewed">Revisado</SelectItem>
               </SelectContent>
             </Select>
@@ -269,13 +271,6 @@ function Lists() {
                     </div>
                   </div>
                   <div className="flex items-center gap-1">
-                    <Button variant="ghost" size="icon" onClick={(e) => {
-                      e.preventDefault()
-                      const newState: ListState = l.state === 'preparing' ? 'shopping' : l.state === 'shopping' ? 'reviewed' : 'preparing'
-                      updateList(l.id, { state: newState })
-                    }} aria-label="Cambiar estado">
-                      <RotateCcw className="h-5 w-5" />
-                    </Button>
                     <Button variant="ghost" size="icon" onClick={(e) => {
                       e.preventDefault()
                       if (confirm('¿Eliminar esta lista?')) deleteList(l.id)
@@ -320,8 +315,13 @@ function Detail() {
 
   if (!list) return <Empty text="Lista no encontrada." />
 
+  // ponytail: finished blocks adds; reviewed freezes everything but the state dropdown
+  const locked = list.state === 'reviewed'
+  const noAdd = locked || list.state === 'finished'
+
   const submit = (e: React.FormEvent) => {
     e.preventDefault()
+    if (noAdd) return
     const code = barcode.trim()
     if (!code && !name.trim()) return
     const known = code ? products[code] : undefined
@@ -445,6 +445,7 @@ function Detail() {
               <SelectContent>
                 <SelectItem value="preparing">Preparando</SelectItem>
                 <SelectItem value="shopping">Comprando</SelectItem>
+                <SelectItem value="finished">Finalizado</SelectItem>
                 <SelectItem value="reviewed">Revisado</SelectItem>
               </SelectContent>
             </Select>
@@ -457,23 +458,26 @@ function Detail() {
 
       <div className="rounded-xl border border-border bg-white shadow-sm">
         <div className="p-4 space-y-3">
+          {list.state === 'finished' && (
+            <p className="text-sm text-text-muted text-center">Solo puedes agregar productos en Preparando o Comprando. Cambia el estado para seguir agregando.</p>
+          )}
           <form className="flex flex-col gap-3 sm:flex-row" onSubmit={submit}>
             <div className="flex-1 min-w-0">
               <Label htmlFor="add-barcode" className="sr-only">Código</Label>
-              <Input id="add-barcode" placeholder="Código" value={barcode} onChange={(e) => setBarcode(e.target.value)} />
+              <Input id="add-barcode" placeholder="Código" value={barcode} onChange={(e) => setBarcode(e.target.value)} disabled={noAdd} />
             </div>
             <div className="flex-1 min-w-0">
               <Label htmlFor="add-name" className="sr-only">Nombre</Label>
-              <Autocomplete value={name} onChange={setName} options={productNames} placeholder="Nombre" onSelect={onNameSelect} />
+              <Autocomplete value={name} onChange={setName} options={productNames} placeholder="Nombre" onSelect={onNameSelect} disabled={noAdd} />
             </div>
             <div className="w-full sm:w-[100px]">
               <Label htmlFor="add-price" className="sr-only">Precio</Label>
-              <Input id="add-price" placeholder="$" inputMode="decimal" value={price} onChange={(e) => setPrice(e.target.value)} />
+              <Input id="add-price" placeholder="$" inputMode="decimal" value={price} onChange={(e) => setPrice(e.target.value)} disabled={noAdd} />
             </div>
-            <Button type="submit" className="btn-primary btn-lg self-end" style={{ minWidth: '100px' }}>+</Button>
+            <Button type="submit" className="btn-primary btn-lg self-end" style={{ minWidth: '100px' }} disabled={noAdd}>+</Button>
           </form>
 
-          <Button className="btn-secondary btn-block btn-lg" onClick={() => navigate(`/lists/${listId}/scanner`)}>
+          <Button className="btn-secondary btn-block btn-lg" onClick={() => navigate(`/lists/${listId}/scanner`)} disabled={noAdd}>
             <Camera className="h-5 w-5 mr-2" /> Escanear código
           </Button>
         </div>
@@ -499,27 +503,27 @@ function Detail() {
             {list.items.map((i: Item) => (
               <li key={i.id} className="px-3 py-3 sm:grid sm:grid-cols-[auto_1fr_auto_auto_auto_auto] sm:gap-2 sm:items-center">
                 <div className="flex items-center gap-2 sm:contents">
-                  <Checkbox checked={i.checked} onCheckedChange={() => toggleItem(listId!, i.id)} className="h-5 w-5" />
+                  <Checkbox checked={i.checked} onCheckedChange={() => { if (!locked) toggleItem(listId!, i.id) }} className="h-5 w-5" disabled={locked} />
                   <div className="flex-1 min-w-0">
                     <div className={cn('font-medium truncate', i.checked ? 'line-through text-gray-400' : 'text-text')}>{i.name}</div>
                     {i.barcode && <div className="text-xs text-gray-500 truncate">{i.barcode}</div>}
                   </div>
                   <div className="flex items-center gap-1 sm:col-start-6">
-                    <Button variant="ghost" size="icon" onClick={() => openEdit(i)} aria-label="Editar">
+                    <Button variant="ghost" size="icon" onClick={() => { if (!locked) openEdit(i) }} aria-label="Editar" disabled={locked}>
                       <Pencil className="h-5 w-5" />
                     </Button>
-                    <Button variant="ghost" size="icon" onClick={() => { setDeleteConfirmItemId(i.id); setShowDeleteConfirm(true) }} aria-label="Eliminar">
+                    <Button variant="ghost" size="icon" onClick={() => { if (!locked) { setDeleteConfirmItemId(i.id); setShowDeleteConfirm(true) } }} aria-label="Eliminar" disabled={locked}>
                       <Trash2 className="h-5 w-5 text-destructive" />
                     </Button>
                   </div>
                 </div>
                 <div className="mt-1 flex items-center gap-2 pl-7 sm:contents">
                   <div className="flex items-center justify-center gap-1 w-20">
-                    <Button variant="ghost" size="icon" onClick={() => handleQtyChange(i.id, i.qty - 1)} aria-label="Decrementar">
+                    <Button variant="ghost" size="icon" onClick={() => { if (!locked) handleQtyChange(i.id, i.qty - 1) }} aria-label="Decrementar" disabled={locked}>
                       <Minus className="h-5 w-5" />
                     </Button>
-                    <QtyInput value={i.qty} onCommit={(v) => handleQtyChange(i.id, v)} />
-                    <Button variant="ghost" size="icon" onClick={() => handleQtyChange(i.id, i.qty + 1)} aria-label="Incrementar">
+                    <QtyInput value={i.qty} onCommit={(v) => { if (!locked) handleQtyChange(i.id, v) }} disabled={locked} />
+                    <Button variant="ghost" size="icon" onClick={() => { if (!locked) handleQtyChange(i.id, i.qty + 1) }} aria-label="Incrementar" disabled={locked}>
                       <Plus className="h-5 w-5" />
                     </Button>
                   </div>
@@ -537,7 +541,7 @@ function Detail() {
       <div className="rounded-xl border border-border bg-white shadow-sm">
         <div className="p-4">
           <Label htmlFor="list-note" className="block text-sm font-medium text-text mb-1.5">Notas</Label>
-          <Textarea id="list-note" rows={3} placeholder="Notas adicionales..." value={list.note} onChange={(e) => updateList(listId!, { note: e.target.value })} />
+          <Textarea id="list-note" rows={3} placeholder="Notas adicionales..." value={list.note} onChange={(e) => { if (!locked) updateList(listId!, { note: e.target.value }) }} disabled={locked} />
         </div>
       </div>
 
@@ -606,14 +610,54 @@ function Detail() {
 function ListScanner() {
   const { listId } = useParams<{ listId: string }>()
   if (!listId) return <Empty text="Lista no encontrada." />
+  const list = useStore((s: State) => s.lists.find((l) => l.id === listId))
   const addItem = useStore((s: State) => s.addItem)
+  const checkItem = useStore((s: State) => s.checkItem)
   const navigate = useNavigate()
+
+  if (!list || list.state === 'finished' || list.state === 'reviewed') {
+    return (
+      <div className="space-y-4 max-w-md mx-auto">
+        <div className="w-full aspect-video bg-black relative overflow-hidden rounded-xl border border-border flex items-center justify-center p-6" style={{ minHeight: '300px', maxHeight: '50vh' }}>
+          <div className="text-center">
+            <h2 className="text-lg font-semibold text-white mb-2">Escanear no disponible</h2>
+            <p className="text-white/70">
+              {list?.state === 'finished' ? 'La lista está en Finalizado. Cambia el estado a Comprando para escanear.' : 'La lista está en Revisado y es de solo lectura.'}
+            </p>
+            <Button variant="outline" className="btn-block mt-4 w-full max-w-xs" onClick={() => navigate(`/lists/${listId}`)}>
+              Volver a la lista
+            </Button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  const isShopping = list.state === 'shopping'
 
   return (
     <Scanner
       elementId="reader"
       onScan={(code: string) => {
         const known = useStore.getState().products[code]
+        const listItems = list.items
+
+        // ponytail: in Comprando, scan checks existing by barcode then catalog name
+        if (isShopping) {
+          // 1. Match by barcode
+          let match = listItems.find((i) => i.barcode === code)
+          // 2. Match by catalog name for rows added by name/autocomplete
+          if (!match && known) {
+            match = listItems.find((i) => i.name.toLowerCase() === known.name.toLowerCase())
+          }
+          if (match) {
+            checkItem(listId, match.id)
+            navigate(`/lists/${listId}`)
+            return
+          }
+        }
+
+        // Normal add flow for Preparando (and Comprando when no match)
         if (known) {
           addItem(listId, { barcode: code, name: known.name, price: known.price })
           navigate(`/lists/${listId}`)
@@ -672,12 +716,14 @@ function ProductForm() {
   const { barcode } = useParams<{ barcode: string }>()
   const navigate = useNavigate()
   const products = useStore((s: State) => s.products)
+  const lists = useStore((s: State) => s.lists)
   const updateProduct = useStore((s: State) => s.updateProduct)
   const deleteProduct = useStore((s: State) => s.deleteProduct)
   const isNew = !barcode
 
   const [searchParams] = useSearchParams()
   const addToList = searchParams.get('addToList')
+  const targetList = addToList ? lists.find((l) => l.id === addToList) : null
   const scannedCode = searchParams.get('barcode') || ''
 
   const existing = barcode ? products[barcode] : null
@@ -703,6 +749,11 @@ function ProductForm() {
       const newBarcode = finalCode || uid()
       updateProduct(newBarcode, { name: finalName, price: parseFloat(price) || 0, updatedAt: Date.now() })
       if (addToList) {
+        const locked = targetList?.state === 'finished' || targetList?.state === 'reviewed'
+        if (locked) {
+          alert('No se pueden agregar productos a una lista en Finalizado o Revisado.')
+          return
+        }
         addItem(addToList, { barcode: newBarcode, name: finalName, price: parseFloat(price) || 0 })
         navigate(`/lists/${addToList}`)
       } else {
@@ -930,6 +981,7 @@ function Autocomplete({
   placeholder,
   onSelect,
   className,
+  disabled,
 }: {
   value: string
   onChange: (v: string) => void
@@ -937,6 +989,7 @@ function Autocomplete({
   placeholder: string
   onSelect?: (v: string) => void
   className?: string
+  disabled?: boolean
 }) {
   const [open, setOpen] = useState(false)
   const [highlighted, setHighlighted] = useState(0)
@@ -966,6 +1019,7 @@ function Autocomplete({
   }, [])
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (disabled) return
     if (!open) {
       if (e.key === 'ArrowDown' || e.key === 'Enter') { e.preventDefault(); setOpen(true); setHighlighted(0) }
       return
@@ -986,10 +1040,11 @@ function Autocomplete({
         ref={inputRef}
         placeholder={placeholder}
         value={value}
-        onChange={(e) => { onChange(e.target.value); setOpen(true); setHighlighted(0) }}
+        onChange={(e) => { if (!disabled) { onChange(e.target.value); setOpen(true); setHighlighted(0) } }}
         onKeyDown={handleKeyDown}
-        onFocus={() => { setOpen(true); setHighlighted(0) }}
+        onFocus={() => { if (!disabled) { setOpen(true); setHighlighted(0) } }}
         autoComplete="off"
+        disabled={disabled}
       />
       {open && filtered.length && (
         <ul
@@ -1014,7 +1069,7 @@ function Autocomplete({
 }
 
 // ponytail: commit on blur/Enter so typing "0.5" never trips the delete modal mid-keystroke
-function QtyInput({ value, onCommit }: { value: number; onCommit: (v: number) => void }) {
+function QtyInput({ value, onCommit, disabled }: { value: number; onCommit: (v: number) => void; disabled?: boolean }) {
   const [text, setText] = useState(String(value))
   const [focused, setFocused] = useState(false)
 
@@ -1023,6 +1078,7 @@ function QtyInput({ value, onCommit }: { value: number; onCommit: (v: number) =>
   }, [value, focused])
 
   const commit = () => {
+    if (disabled) return
     const v = parseFloat(text.replace(',', '.'))
     if (!Number.isFinite(v)) {
       setText(String(value))
@@ -1037,8 +1093,8 @@ function QtyInput({ value, onCommit }: { value: number; onCommit: (v: number) =>
       inputMode="decimal"
       aria-label="Cantidad"
       className="w-14 text-center px-1"
-      onChange={(e) => setText(e.target.value)}
-      onFocus={() => setFocused(true)}
+      onChange={(e) => { if (!disabled) setText(e.target.value) }}
+      onFocus={() => { if (!disabled) setFocused(true) }}
       onBlur={() => {
         setFocused(false)
         commit()
@@ -1050,6 +1106,7 @@ function QtyInput({ value, onCommit }: { value: number; onCommit: (v: number) =>
           ;(e.target as HTMLInputElement).blur()
         }
       }}
+      disabled={disabled}
     />
   )
 }
